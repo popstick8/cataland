@@ -5,9 +5,10 @@
 	"scripts": {
 		"dev": "tauri dev",
 		"web": "vite",
-		"build": "tsc --noEmit && vite build",
-		"check": "biome check --write --error-on-warnings && tsc --noEmit",
-		"desktop": "tauri build"
+		"build": "tsc && vite build",
+		"check": "biome check --write --error-on-warnings && tsc && cargo fmt && cargo clippy --workspace --all-targets -- -D warnings",
+		"desktop": "tauri build",
+		"bindings": "cargo run -p cataland-core --bin bindings && biome format --write ."
 	},
 	"devEngines": {
 		"packageManager": {
