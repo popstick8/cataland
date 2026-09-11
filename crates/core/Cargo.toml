@@ -4,5 +4,6 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+fastrand = "2.5.0"
 serde = { version = "1.0.229", features = ["derive"] }
 ts-rs = "12.0.1"

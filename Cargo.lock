@@ -303,6 +303,7 @@ dependencies = [
 name = "cataland-core"
 version = "1.0.0"
 dependencies = [
+ "fastrand",
  "serde",
  "ts-rs",
 ]

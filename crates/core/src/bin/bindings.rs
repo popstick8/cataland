@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, fs, path::Path};
 
-use cataland_core::{ClientView, Request, Response, RoomInfo};
+use cataland_core::{ClientView, Request, Response, RoomInfo, board::Board};
 use ts_rs::{Config, TS, TypeVisitor};
 
 #[derive(Default)]
@@ -25,6 +25,7 @@ impl TypeVisitor for Bindings {
 fn main() -> std::io::Result<()> {
     let mut bindings = Bindings::default();
     bindings.visit::<ClientView>();
+    bindings.visit::<Board>();
     bindings.visit::<Request>();
     bindings.visit::<Response>();
     bindings.visit::<RoomInfo>();

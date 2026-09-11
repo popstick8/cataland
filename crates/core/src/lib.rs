@@ -1,3 +1,4 @@
+pub mod board;
 pub mod room;
 
 use serde::{Deserialize, Serialize};
