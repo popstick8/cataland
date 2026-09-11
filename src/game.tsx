@@ -282,7 +282,12 @@ export function GameTable({
 							<span>{t("点击棋盘上的高亮位置")}</span>
 						)}
 					</div>
-					<BoardCanvas game={game} options={options} act={act} />
+					<BoardCanvas
+						game={game}
+						options={options}
+						act={act}
+						strength={session.view?.preferences.animation ?? 1}
+					/>
 					{game.private ? (
 						<div className="hand">
 							<ResourceCards

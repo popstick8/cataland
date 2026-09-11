@@ -8,6 +8,7 @@ import {
 	Text,
 } from "pixi.js";
 import type { Action, Board, GameView, Target, Terrain } from "./bindings";
+import { createCamera } from "./camera";
 import type { Translate } from "./locale";
 import { colors } from "./palette";
 
@@ -61,6 +62,7 @@ export async function createScene(
 	initialOptions: BoardOption[],
 	initialAction: (action: Action) => void,
 	initialText: Translate,
+	initialStrength: number,
 ) {
 	const app = new Application();
 	await app.init({
@@ -73,7 +75,10 @@ export async function createScene(
 		backgroundAlpha: 0,
 	});
 	const terrain = await Assets.load<Spritesheet>("/art/terrain.json");
-	element.append(app.canvas);
+	const surface = document.createElement("div");
+	surface.className = "board-world";
+	surface.append(app.canvas);
+	element.append(surface);
 	app.canvas.setAttribute("aria-label", initialText("游戏棋盘"));
 	app.canvas.style.touchAction = "none";
 	const world = new Container();
@@ -166,59 +171,17 @@ export async function createScene(
 		world.addChild(label);
 	}
 	world.addChild(pieces, hints);
-	const xs = board.vertices.map((point) => point.x * 80);
-	const ys = board.vertices.map((point) => point.y * 66);
-	const width = Math.max(...xs) - Math.min(...xs) + 170;
-	const height = Math.max(...ys) - Math.min(...ys) + 170;
-	let magnification = 1;
-	let offset = { x: 0, y: 0 };
-	let drag: {
-		id: number;
-		x: number;
-		y: number;
-		startX: number;
-		startY: number;
-	} | null = null;
-	const events = new AbortController();
+	const bounds = world.getLocalBounds();
+	const width = Math.ceil(bounds.width) + 100;
+	const height = Math.ceil(bounds.height) + 100;
+	world.position.set(50 - bounds.minX, 50 - bounds.minY);
+	app.renderer.resize(width, height);
+	surface.style.width = `${width}px`;
+	surface.style.height = `${height}px`;
 	const paint = () => app.render();
-	const layout = () => {
-		world.scale.set(
-			Math.min(app.screen.width / width, app.screen.height / height) *
-				magnification,
-		);
-		world.position.set(
-			app.screen.width / 2 + offset.x,
-			app.screen.height / 2 + offset.y,
-		);
-		paint();
-	};
-	const fit = () => {
-		magnification = 1;
-		offset = { x: 0, y: 0 };
-		layout();
-	};
-	const zoom = (
-		factor: number,
-		x = app.screen.width / 2,
-		y = app.screen.height / 2,
-	) => {
-		const before = world.scale.x;
-		const next = Math.max(0.55, Math.min(3.5, magnification * factor));
-		const ratio = next / magnification;
-		magnification = next;
-		offset = {
-			x: x - ((x - world.x) / before) * before * ratio - app.screen.width / 2,
-			y: y - ((y - world.y) / before) * before * ratio - app.screen.height / 2,
-		};
-		layout();
-	};
-	const local = (event: PointerEvent) => {
-		const rect = app.canvas.getBoundingClientRect();
-		return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-	};
 	const hit = (x: number, y: number) => {
-		const px = (x - world.x) / world.scale.x;
-		const py = (y - world.y) / world.scale.y;
+		const px = x - world.x;
+		const py = y - world.y;
 		return options.find(({ target }) => {
 			if (target.type === "vertex") {
 				const point = coordinates(board, target.id);
@@ -247,87 +210,34 @@ export async function createScene(
 			return Math.hypot(px - a.x - t * dx, py - a.y - t * dy) < 13;
 		});
 	};
-	app.canvas.addEventListener(
-		"pointerdown",
-		(event) => {
-			if (event.button !== 0 && event.button !== 1) return;
-			const point = local(event);
-			drag = {
-				id: event.pointerId,
-				...point,
-				startX: offset.x,
-				startY: offset.y,
-			};
-			app.canvas.setPointerCapture(event.pointerId);
-			app.canvas.style.cursor = "grabbing";
+	const camera = createCamera(
+		element,
+		surface,
+		width,
+		height,
+		initialStrength,
+		({ x, y }) => {
+			const option = hit(x, y);
+			if (option) act(option.action);
 		},
-		{ signal: events.signal },
-	);
-	app.canvas.addEventListener(
-		"pointermove",
-		(event) => {
-			const point = local(event);
-			if (drag?.id === event.pointerId) {
-				offset = {
-					x: drag.startX + point.x - drag.x,
-					y: drag.startY + point.y - drag.y,
-				};
-				layout();
-			} else {
-				app.canvas.style.cursor = hit(point.x, point.y) ? "pointer" : "grab";
-			}
+		({ x, y }) => Boolean(hit(x, y)),
+		(scale) => {
+			const resolution = Math.max(1, devicePixelRatio * scale);
+			if (app.renderer.resolution === resolution) return;
+			app.renderer.resolution = resolution;
+			app.renderer.resize(width, height);
+			paint();
 		},
-		{ signal: events.signal },
 	);
-	app.canvas.addEventListener(
-		"pointerup",
-		(event) => {
-			const point = local(event);
-			if (
-				drag?.id === event.pointerId &&
-				Math.hypot(point.x - drag.x, point.y - drag.y) < 5
-			) {
-				const option = hit(point.x, point.y);
-				if (option) act(option.action);
-			}
-			drag = null;
-			app.canvas.style.cursor = "grab";
-		},
-		{ signal: events.signal },
-	);
-	app.canvas.addEventListener(
-		"pointercancel",
-		() => {
-			drag = null;
-		},
-		{ signal: events.signal },
-	);
-	app.canvas.addEventListener(
-		"wheel",
-		(event) => {
-			event.preventDefault();
-			const rect = app.canvas.getBoundingClientRect();
-			zoom(
-				Math.exp(-event.deltaY * 0.002),
-				event.clientX - rect.left,
-				event.clientY - rect.top,
-			);
-		},
-		{ passive: false, signal: events.signal },
-	);
-	const resize = new ResizeObserver(() => {
-		app.renderer.resolution = devicePixelRatio;
-		app.renderer.resize(element.clientWidth, element.clientHeight);
-		layout();
-	});
-	resize.observe(element);
 	const update = (
 		view: GameView,
 		nextOptions: BoardOption[],
 		onAction: (action: Action) => void,
 		t: Translate,
+		strength: number,
 	) => {
 		options = nextOptions;
+		camera.configure(strength);
 		app.canvas.setAttribute("aria-label", t("游戏棋盘"));
 		for (const { label, key, suffix } of labels) label.text = t(key) + suffix;
 		act = onAction;
@@ -515,15 +425,14 @@ export async function createScene(
 		}
 		paint();
 	};
-	fit();
-	update(initial, initialOptions, initialAction, initialText);
+	update(initial, initialOptions, initialAction, initialText, initialStrength);
 	return {
 		update,
-		fit,
-		zoom,
+		fit: camera.fit,
+		zoom: camera.zoom,
 		destroy() {
-			events.abort();
-			resize.disconnect();
+			camera.destroy();
+			surface.remove();
 			app.destroy(true, { children: true });
 		},
 	};

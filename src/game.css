@@ -196,6 +196,13 @@
 .board-canvas {
 	position: absolute;
 	inset: 0;
+	overflow: hidden;
+	touch-action: none;
+	cursor: grab;
+}
+.board-world {
+	position: absolute;
+	transform-origin: 0 0;
 }
 .board-canvas canvas {
 	display: block;

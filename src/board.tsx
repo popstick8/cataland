@@ -8,20 +8,22 @@ export function BoardCanvas({
 	game,
 	options,
 	act,
+	strength,
 }: {
 	game: GameView;
 	options: BoardOption[];
 	act: (action: Action) => void;
+	strength: number;
 }) {
 	const t = useText();
 	const element = useRef<HTMLDivElement>(null);
 	const scene = useRef<Scene | null>(null);
-	const current = useRef({ game, options, act, t });
+	const current = useRef({ game, options, act, t, strength });
 	const [error, setError] = useState<string | null>(null);
 	useEffect(() => {
-		current.current = { game, options, act, t };
-		scene.current?.update(game, options, act, t);
-	}, [game, options, act, t]);
+		current.current = { game, options, act, t, strength };
+		scene.current?.update(game, options, act, t, strength);
+	}, [game, options, act, t, strength]);
 	useEffect(() => {
 		const root = element.current;
 		if (!root) return;
@@ -38,6 +40,7 @@ export function BoardCanvas({
 							initial.options,
 							initial.act,
 							initial.t,
+							initial.strength,
 						),
 			)
 			.then((created) => {
@@ -49,7 +52,13 @@ export function BoardCanvas({
 				instance = created;
 				scene.current = created;
 				const latest = current.current;
-				created.update(latest.game, latest.options, latest.act, latest.t);
+				created.update(
+					latest.game,
+					latest.options,
+					latest.act,
+					latest.t,
+					latest.strength,
+				);
 			})
 			.catch((cause) => {
 				if (!disposed) setError(String(cause));
