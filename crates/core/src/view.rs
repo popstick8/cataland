@@ -23,6 +23,7 @@ pub struct PlayerView {
 pub struct PrivateView {
     pub hand: Cards,
     pub points: u16,
+    pub rates: [u8; 8],
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -56,6 +57,7 @@ pub struct Prompt {
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct GameView {
+    pub trade: Option<crate::economy::Trade>,
     pub mode: Mode,
     pub board: Board,
     pub players: Vec<PlayerView>,
@@ -76,6 +78,7 @@ impl Game {
     pub fn view(&self, viewer: Option<usize>) -> GameView {
         let viewer = viewer.filter(|&player| player < self.players.len());
         GameView {
+            trade: self.trade.clone(),
             mode: self.mode,
             board: self.board.clone(),
             players: self
@@ -99,6 +102,7 @@ impl Game {
             stage: self.stage.clone(),
             turn: self.turn.clone(),
             private: viewer.map(|player| PrivateView {
+                rates: crate::board::Resource::ALL.map(|resource| self.bank_rate(player, resource)),
                 hand: self.players[player].hand,
                 points: self.points(player),
             }),
@@ -118,8 +122,35 @@ impl Game {
     }
 
     pub fn actions(&self, player: usize) -> Vec<AvailableAction> {
+        use crate::{
+            board::Resource,
+            economy::{CITY, ROAD, SETTLEMENT},
+        };
+
         let mut actions = Vec::new();
-        if player >= self.players.len() || player != self.turn.player || !self.pending.is_empty() {
+        if player >= self.players.len() || !self.pending.is_empty() {
+            return actions;
+        }
+        if self.stage == Stage::Action
+            && let Some(trade) = &self.trade
+            && trade.player != player
+        {
+            if self.can_pay(player, &trade.want) {
+                actions.push(AvailableAction {
+                    action: Action::RespondTrade { accept: true },
+                    label: "同意交易".into(),
+                    target: None,
+                    cost: trade.want,
+                });
+            }
+            actions.push(AvailableAction {
+                action: Action::RespondTrade { accept: false },
+                label: "拒绝交易".into(),
+                target: None,
+                cost: [0; 8],
+            });
+        }
+        if player != self.turn.player {
             return actions;
         }
         match &self.stage {
@@ -155,12 +186,86 @@ impl Game {
                 target: None,
                 cost: [0; 8],
             }),
-            Stage::Action => actions.push(AvailableAction {
-                action: Action::EndTurn,
-                label: "结束回合".into(),
-                target: None,
-                cost: [0; 8],
-            }),
+            Stage::Action => {
+                if self.players[player].roads > 0 && self.can_pay(player, &ROAD) {
+                    for edge in 0..self.board.edges.len() {
+                        if self.can_road(player, edge) {
+                            actions.push(AvailableAction {
+                                action: Action::BuildRoad { edge },
+                                label: "建造道路".into(),
+                                target: Some(Target::Edge(edge)),
+                                cost: ROAD,
+                            });
+                        }
+                    }
+                }
+                for vertex in 0..self.board.vertices.len() {
+                    if self.players[player].settlements > 0
+                        && self.can_pay(player, &SETTLEMENT)
+                        && self.can_settle(player, vertex, false)
+                    {
+                        actions.push(AvailableAction {
+                            action: Action::BuildSettlement { vertex },
+                            label: "建造村庄".into(),
+                            target: Some(Target::Vertex(vertex)),
+                            cost: SETTLEMENT,
+                        });
+                    }
+                    if self.can_pay(player, &CITY) && self.can_city(player, vertex) {
+                        actions.push(AvailableAction {
+                            action: Action::BuildCity { vertex },
+                            label: "升级城市".into(),
+                            target: Some(Target::Vertex(vertex)),
+                            cost: CITY,
+                        });
+                    }
+                }
+                for give in Resource::ALL {
+                    let rate = u16::from(self.bank_rate(player, give));
+                    if self.players[player].hand[give.index()] < rate {
+                        continue;
+                    }
+                    for take in Resource::ALL {
+                        if give != take && self.bank[take.index()] > 0 {
+                            let mut cost = [0; 8];
+                            cost[give.index()] = rate;
+                            actions.push(AvailableAction {
+                                action: Action::BankTrade { give, take },
+                                label: format!("{} → {}", give.name(), take.name()),
+                                target: None,
+                                cost,
+                            });
+                        }
+                    }
+                }
+                if let Some(trade) = &self.trade {
+                    actions.push(AvailableAction {
+                        action: Action::CancelTrade,
+                        label: "取消报价".into(),
+                        target: None,
+                        cost: [0; 8],
+                    });
+                    for (partner, accepted) in trade.responses.iter().enumerate() {
+                        if *accepted == Some(true)
+                            && self.can_pay(player, &trade.give)
+                            && self.can_pay(partner, &trade.want)
+                        {
+                            actions.push(AvailableAction {
+                                action: Action::CompleteTrade { partner },
+                                label: format!("与{}成交", self.players[partner].name),
+                                target: None,
+                                cost: trade.give,
+                            });
+                        }
+                    }
+                }
+                actions.push(AvailableAction {
+                    action: Action::EndTurn,
+                    label: "结束回合".into(),
+                    target: None,
+                    cost: [0; 8],
+                });
+            }
             Stage::Ended => {}
         }
         actions

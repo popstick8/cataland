@@ -60,6 +60,12 @@ pub enum Target {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Action {
+    BuildCity { vertex: usize },
+    BankTrade { give: Resource, take: Resource },
+    OfferTrade { give: Cards, want: Cards },
+    RespondTrade { accept: bool },
+    CompleteTrade { partner: usize },
+    CancelTrade,
     BuildSettlement { vertex: usize },
     BuildRoad { edge: usize },
     Roll,
@@ -114,6 +120,7 @@ pub struct Game {
     pub starter: usize,
     pub pending: VecDeque<Effect>,
     pub events: Vec<Event>,
+    pub trade: Option<crate::economy::Trade>,
     pub winner: Option<usize>,
 }
 
@@ -171,6 +178,7 @@ impl Game {
             starter,
             pending: VecDeque::new(),
             events: Vec::new(),
+            trade: None,
             winner: None,
         };
         Ok(game)
@@ -183,8 +191,13 @@ impl Game {
         if self.stage == Stage::Ended {
             return Err("这场对局已经结束".into());
         }
+        if let Action::RespondTrade { accept } = action {
+            return self.respond_trade(player, accept);
+        }
         if !self.pending.is_empty() {
-            return self.resolve(player, action);
+            self.resolve(player, action)?;
+            self.check_victory();
+            return Ok(());
         }
         if player != self.turn.player {
             return Err("当前由其他玩家行动".into());
@@ -276,8 +289,10 @@ impl Game {
             }
             (Stage::Production, Action::Roll) => self.roll(),
             (Stage::Action, Action::EndTurn) => self.end_turn(),
+            (Stage::Action, action) => self.economy(player, action)?,
             _ => return Err("这个动作不属于当前阶段".into()),
         }
+        self.check_victory();
         Ok(())
     }
 
@@ -461,6 +476,7 @@ impl Game {
     }
 
     fn end_turn(&mut self) {
+        self.trade = None;
         self.turn.player = (self.turn.player + 1) % self.players.len();
         self.turn.number += 1;
         self.turn.dice.clear();

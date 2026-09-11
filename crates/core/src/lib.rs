@@ -1,4 +1,5 @@
 pub mod board;
+pub mod economy;
 pub mod game;
 pub mod room;
 pub mod view;
