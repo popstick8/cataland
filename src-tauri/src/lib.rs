@@ -1,4 +1,5 @@
 mod desktop;
+mod network;
 
 use tauri::Manager;
 
@@ -11,6 +12,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             desktop::session,
             desktop::host,
+            desktop::join,
             desktop::room_action,
             desktop::leave
         ])

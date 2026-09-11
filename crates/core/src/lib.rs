@@ -108,4 +108,15 @@ pub enum Response {
 pub struct ClientView {
     pub identity: Identity,
     pub room: Option<RoomView>,
+    pub connection: Connection,
+    pub address: String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub enum Connection {
+    Home,
+    Connecting,
+    Connected,
+    Disconnected,
 }

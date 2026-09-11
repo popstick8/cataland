@@ -2,7 +2,14 @@
 
 export type Chat = { name: string; text: string; time: number };
 
-export type ClientView = { identity: Identity; room: RoomView | null };
+export type ClientView = {
+	identity: Identity;
+	room: RoomView | null;
+	connection: Connection;
+	address: string;
+};
+
+export type Connection = "home" | "connecting" | "connected" | "disconnected";
 
 export type Identity = { token: string; name: string; color: number };
 
