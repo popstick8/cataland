@@ -9,6 +9,7 @@ import {
 import { Monitor as MonitorIcon, Settings, Volume2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Preferences } from "./bindings";
+import { useText } from "./locale";
 import "./preferences.css";
 
 export function PreferencesPanel({
@@ -18,6 +19,7 @@ export function PreferencesPanel({
 	initial: Preferences;
 	close: () => void;
 }) {
+	const t = useText();
 	const dialog = useRef<HTMLDialogElement>(null);
 	const [value, setValue] = useState(initial);
 	const [monitors, setMonitors] = useState<Monitor[]>([]);
@@ -93,12 +95,13 @@ export function PreferencesPanel({
 			>
 				<header>
 					<h2>
-						<Settings size={21} /> 设置
+						<Settings size={21} />
+						{t("设置")}
 					</h2>
 					<button
 						type="button"
 						className="icon-button"
-						aria-label="关闭设置"
+						aria-label={t("关闭设置")}
 						onClick={close}
 					>
 						<X size={19} />
@@ -111,14 +114,15 @@ export function PreferencesPanel({
 				)}
 				<section>
 					<h3>
-						<Volume2 size={16} /> 声音
+						<Volume2 size={16} />
+						{t("声音")}
 					</h3>
 					{(
 						[
-							{ key: "master", label: "主音量" },
-							{ key: "music", label: "背景音乐" },
-							{ key: "effects", label: "游戏音效" },
-							{ key: "ambience", label: "环境声音" },
+							{ key: "master", label: t("主音量") },
+							{ key: "music", label: t("背景音乐") },
+							{ key: "effects", label: t("游戏音效") },
+							{ key: "ambience", label: t("环境声音") },
 						] as const
 					).map(({ key, label }) => (
 						<label className="range-setting" key={key}>
@@ -141,23 +145,24 @@ export function PreferencesPanel({
 				</section>
 				<section>
 					<h3>
-						<MonitorIcon size={16} /> 显示
+						<MonitorIcon size={16} />
+						{t("显示")}
 					</h3>
 					<div className="form-row">
 						<label>
-							显示模式
+							{t("显示模式")}
 							<select
 								value={String(fullscreen)}
 								onChange={(event) =>
 									setFullscreen(event.target.value === "true")
 								}
 							>
-								<option value="false">窗口</option>
-								<option value="true">全屏</option>
+								<option value="false">{t("窗口")}</option>
+								<option value="true">{t("全屏")}</option>
 							</select>
 						</label>
 						<label>
-							显示器
+							{t("显示器")}
 							<select
 								value={monitor}
 								onChange={(event) => setMonitor(event.target.value)}
@@ -167,7 +172,7 @@ export function PreferencesPanel({
 										key={`${display.position.x}:${display.position.y}`}
 										value={String(index)}
 									>
-										{display.name || `显示器 ${index + 1}`} ·{" "}
+										{display.name || t("显示器 {0}", index + 1)} ·{" "}
 										{display.size.width} × {display.size.height}
 									</option>
 								))}
@@ -176,7 +181,7 @@ export function PreferencesPanel({
 					</div>
 					<div className="form-row">
 						<label>
-							界面缩放
+							{t("界面缩放")}
 							<select
 								value={value.scale}
 								onChange={(event) =>
@@ -191,21 +196,21 @@ export function PreferencesPanel({
 							</select>
 						</label>
 						<label>
-							动画强度
+							{t("动画强度")}
 							<select
 								value={value.animation}
 								onChange={(event) =>
 									setValue({ ...value, animation: Number(event.target.value) })
 								}
 							>
-								<option value={0}>关闭</option>
-								<option value={0.5}>轻柔</option>
-								<option value={1}>标准</option>
+								<option value={0}>{t("关闭")}</option>
+								<option value={0.5}>{t("轻柔")}</option>
+								<option value={1}>{t("标准")}</option>
 							</select>
 						</label>
 					</div>
 					<label>
-						语言
+						{t("语言")}
 						<select
 							value={value.language}
 							onChange={(event) =>
@@ -215,18 +220,18 @@ export function PreferencesPanel({
 								})
 							}
 						>
-							<option value="zh-CN">简体中文</option>
+							<option value="zh-CN">{t("简体中文")}</option>
 							<option value="en">English</option>
 						</select>
 					</label>
-					<p className="muted">F11 切换全屏。窗口大小与位置自动保存。</p>
+					<p className="muted">{t("F11 切换全屏。窗口大小与位置自动保存。")}</p>
 				</section>
 				<footer>
 					<button type="button" className="quiet" onClick={close}>
-						取消
+						{t("取消")}
 					</button>
 					<button type="submit" className="primary" disabled={busy}>
-						应用设置
+						{t("应用设置")}
 					</button>
 				</footer>
 			</form>

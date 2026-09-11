@@ -1,8 +1,9 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Compass, Settings, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GameTable } from "./game";
 import { Home, Lobby } from "./lobby";
+import { Locale, translator } from "./locale";
 import { PreferencesPanel } from "./preferences";
 import { ConnectionNotice } from "./rooms";
 import { useSession } from "./session";
@@ -13,6 +14,11 @@ export function App() {
 	const session = useSession();
 	const [settings, setSettings] = useState(false);
 	const { report } = session;
+	const language = session.view?.preferences.language ?? "zh-CN";
+	const t = useMemo(() => translator(language), [language]);
+	useEffect(() => {
+		document.documentElement.lang = language;
+	}, [language]);
 	useSound(session.view?.preferences, session.view?.room, report);
 	useEffect(() => {
 		const key = (event: KeyboardEvent) => {
@@ -34,77 +40,79 @@ export function App() {
 			);
 	}, [session.view]);
 	return (
-		<div className="app">
-			{settings && session.view && (
-				<PreferencesPanel
-					initial={session.view.preferences}
-					close={() => setSettings(false)}
-				/>
-			)}
-			<header className="app-bar">
-				<div className="brand">
-					<Compass size={24} />
-					<span>Cataland</span>
-				</div>
-				<div className="app-tools">
-					<span className="app-caption">群岛之约</span>
-					<button
-						type="button"
-						className="icon-button"
-						aria-label="设置"
-						disabled={!session.view}
-						onClick={() => setSettings(true)}
-					>
-						<Settings size={20} />
-					</button>
-				</div>
-			</header>
-			{session.view && (
-				<ConnectionNotice view={session.view} session={session} />
-			)}
-			{session.error && (
-				<div className="error" role="alert">
-					<span>{session.error}</span>
-					<button
-						type="button"
-						className="icon-button"
-						aria-label="关闭消息"
-						onClick={session.clearError}
-					>
-						<X size={18} />
-					</button>
-				</div>
-			)}
-			{session.view ? (
-				session.view.room ? (
-					session.view.room.game ? (
-						<GameTable
-							key={session.view.room.id}
-							room={session.view.room}
-							game={session.view.room.game}
-							session={session}
-						/>
+		<Locale value={language}>
+			<div className="app">
+				{settings && session.view && (
+					<PreferencesPanel
+						initial={session.view.preferences}
+						close={() => setSettings(false)}
+					/>
+				)}
+				<header className="app-bar">
+					<div className="brand">
+						<Compass size={24} />
+						<span>Cataland</span>
+					</div>
+					<div className="app-tools">
+						<span className="app-caption">{t("群岛之约")}</span>
+						<button
+							type="button"
+							className="icon-button"
+							aria-label={t("设置")}
+							disabled={!session.view}
+							onClick={() => setSettings(true)}
+						>
+							<Settings size={20} />
+						</button>
+					</div>
+				</header>
+				{session.view && (
+					<ConnectionNotice view={session.view} session={session} />
+				)}
+				{session.error && (
+					<div className="error" role="alert">
+						<span>{session.error}</span>
+						<button
+							type="button"
+							className="icon-button"
+							aria-label={t("关闭消息")}
+							onClick={session.clearError}
+						>
+							<X size={18} />
+						</button>
+					</div>
+				)}
+				{session.view ? (
+					session.view.room ? (
+						session.view.room.game ? (
+							<GameTable
+								key={session.view.room.id}
+								room={session.view.room}
+								game={session.view.room.game}
+								session={session}
+							/>
+						) : (
+							<Lobby
+								key={session.view.room.id}
+								room={session.view.room}
+								session={session}
+							/>
+						)
 					) : (
-						<Lobby
-							key={session.view.room.id}
-							room={session.view.room}
-							session={session}
-						/>
+						<Home view={session.view} session={session} />
 					)
 				) : (
-					<Home view={session.view} session={session} />
-				)
-			) : (
-				<main className="loading">
-					<Compass size={38} />
-					<p>正在打开群岛…</p>
-					{session.error && (
-						<button type="button" onClick={() => void session.run("session")}>
-							重新连接
-						</button>
-					)}
-				</main>
-			)}
-		</div>
+					<main className="loading">
+						<Compass size={38} />
+						<p>{t("正在打开群岛…")}</p>
+						{session.error && (
+							<button type="button" onClick={() => void session.run("session")}>
+								{t("重新连接")}
+							</button>
+						)}
+					</main>
+				)}
+			</div>
+		</Locale>
 	);
 }

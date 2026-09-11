@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { ClientView, RoomInfo } from "./bindings";
+import { useText } from "./locale";
 import type { Session } from "./session";
 import "./rooms.css";
 
@@ -22,6 +23,7 @@ export function RoomBrowser({
 	name: string;
 	color: number;
 }) {
+	const t = useText();
 	const [address, setAddress] = useState("");
 	const connect = (room: RoomInfo) => {
 		const current = view.nearby.find((item) => item.id === room.id) ?? room;
@@ -31,11 +33,12 @@ export function RoomBrowser({
 		<section className="room-browser">
 			<div className="paper room-list">
 				<h2>
-					<Radio size={21} /> 加入房间
+					<Radio size={21} />
+					{t("加入房间")}
 				</h2>
 				{view.nearby.length === 0 && (
 					<p className="muted">
-						同一局域网中的房间会显示在这里，也可以输入主机地址连接。
+						{t("同一局域网中的房间会显示在这里，也可以输入主机地址连接。")}
 					</p>
 				)}
 				{view.nearby.map((room) => (
@@ -49,9 +52,9 @@ export function RoomBrowser({
 						<span className="room-entry-text">
 							<strong>{room.name}</strong>
 							<small>
-								{room.mode === "cities" ? "城市与骑士" : "基础规则"} ·{" "}
-								{room.players} / {room.capacity} 人
-								{room.started ? " · 观战" : ""}
+								{room.mode === "cities" ? t("城市与骑士") : t("基础规则")} ·{" "}
+								{t("{0} / {1} 人", room.players, room.capacity)}
+								{room.started ? t(" · 观战") : ""}
 							</small>
 						</span>
 						<ArrowRight size={18} />
@@ -65,21 +68,22 @@ export function RoomBrowser({
 					}}
 				>
 					<label>
-						主机地址
+						{t("主机地址")}
 						<input
 							value={address}
 							onChange={(event) => setAddress(event.target.value)}
-							placeholder="192.168.1.10:端口"
+							placeholder={t("192.168.1.10:端口")}
 							required
 						/>
 					</label>
 					<button type="submit" disabled={session.busy || !address.trim()}>
-						<DoorOpen size={17} /> 连接
+						<DoorOpen size={17} />
+						{t("连接")}
 					</button>
 				</form>
 				{view.recent.length > 0 && (
 					<details>
-						<summary>最近加入</summary>
+						<summary>{t("最近加入")}</summary>
 						{view.recent.map((room) => (
 							<button
 								type="button"
@@ -100,11 +104,14 @@ export function RoomBrowser({
 			</div>
 			<div className="paper room-list">
 				<h2>
-					<Clock3 size={21} /> 继续游戏
+					<Clock3 size={21} />
+					{t("继续游戏")}
 				</h2>
 				{view.saves.length === 0 && (
 					<p className="muted">
-						本机创建的对局会自动保存，可以从这里重新开放房间，继续上一次的游戏。
+						{t(
+							"本机创建的对局会自动保存，可以从这里重新开放房间，继续上一次的游戏。",
+						)}
 					</p>
 				)}
 				{view.saves.map((save) => (
@@ -118,7 +125,11 @@ export function RoomBrowser({
 						<span className="room-entry-text">
 							<strong>{save.name}</strong>
 							<small>{save.players.join("、")}</small>
-							<small>{new Date(save.updated).toLocaleString()}</small>
+							<small>
+								{new Date(save.updated).toLocaleString(
+									view.preferences.language,
+								)}
+							</small>
 						</span>
 						<RotateCcw size={18} />
 					</button>
@@ -135,6 +146,7 @@ export function ConnectionNotice({
 	view: ClientView;
 	session: Session;
 }) {
+	const t = useText();
 	if (view.connection === "home" || view.connection === "connected")
 		return null;
 	const connecting = view.connection === "connecting";
@@ -142,17 +154,17 @@ export function ConnectionNotice({
 		<div className="connection-overlay">
 			<section className="paper connection-panel" role="status">
 				{connecting ? <Radio size={30} /> : <WifiOff size={30} />}
-				<h2>{connecting ? "正在连接房间" : "房间连接已断开"}</h2>
+				<h2>{connecting ? t("正在连接房间") : t("房间连接已断开")}</h2>
 				<p className="muted">
 					{connecting
-						? "正在与主机建立连接。"
+						? t("正在与主机建立连接。")
 						: view.room
-							? "席位与对局仍在原房间。房主恢复游戏后即可继续。"
-							: "可以重新连接，或返回选择其他房间。"}
+							? t("席位与对局仍在原房间。房主恢复游戏后即可继续。")
+							: t("可以重新连接，或返回选择其他房间。")}
 				</p>
 				<div className="form-row">
 					<button type="button" onClick={() => void session.run("leave")}>
-						返回首页
+						{t("返回首页")}
 					</button>
 					{!connecting && (
 						<button
@@ -167,7 +179,7 @@ export function ConnectionNotice({
 								})
 							}
 						>
-							重新连接
+							{t("重新连接")}
 						</button>
 					)}
 				</div>
