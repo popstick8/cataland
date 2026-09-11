@@ -530,5 +530,11 @@
 	"对局记录": "Game archive",
 	"响应进度": "Responses",
 	"已完成": "Done",
-	"选择中": "Choosing"
+	"选择中": "Choosing",
+	"棋盘顶点 {0} 不存在": "Board vertex {0} does not exist.",
+	"玩家 {0} 的棋子颜色无效": "Invalid piece color for player {0}.",
+	"缺少地形资源：{0}": "Missing terrain artwork: {0}",
+	"港口对应的海岸 {0} 不存在": "Coastal edge {0} for this port does not exist.",
+	"道路对应的棋盘边 {0} 不存在": "Board edge {0} for this road does not exist.",
+	"无法读取声音资源 {0}：HTTP {1}": "Unable to load audio {0}: HTTP {1}"
 }

@@ -10,7 +10,7 @@ import {
 } from "pixi.js";
 import type { Action, Board, GameView, Target, Terrain } from "./bindings";
 import { createCamera, type Point } from "./camera";
-import type { Translate } from "./locale";
+import { Failure, type Translate } from "./locale";
 import { colors } from "./palette";
 
 export type BoardOption = { target: Target; action: Action };
@@ -26,14 +26,14 @@ const land: Record<Terrain, { color: number; name: string }> = {
 
 function coordinates(board: Board, vertex: number) {
 	const point = board.vertices[vertex];
-	if (!point) throw new Error("棋盘顶点不存在");
+	if (!point) throw new Failure("棋盘顶点 {0} 不存在", vertex);
 	return { x: point.x * 80, y: point.y * 66 };
 }
 
 function playerColor(view: GameView, player: number) {
 	const seat = view.players[player];
 	const color = seat && colors[seat.color];
-	if (!color) throw new Error("棋盘玩家颜色无效");
+	if (!color) throw new Failure("玩家 {0} 的棋子颜色无效", player);
 	return color;
 }
 
@@ -97,7 +97,7 @@ export async function createScene(
 	for (const [id, hex] of board.hexes.entries()) {
 		const tile = new Container();
 		const texture = terrain.textures[`${hex.terrain}-${id % 3}`];
-		if (!texture) throw new Error(`缺少地形资源：${hex.terrain}`);
+		if (!texture) throw new Failure("缺少地形资源：{0}", hex.terrain);
 		const surface = new Sprite(texture);
 		surface.anchor.set(0.5, 278 / 512);
 		surface.position.set(hex.x * 80, hex.y * 66);
@@ -133,7 +133,7 @@ export async function createScene(
 	}
 	for (const harbor of board.harbors) {
 		const edge = board.edges[harbor.edge];
-		if (!edge) throw new Error("港口对应的海岸不存在");
+		if (!edge) throw new Failure("港口对应的海岸 {0} 不存在", harbor.edge);
 		const a = coordinates(board, edge.vertices[0]);
 		const b = coordinates(board, edge.vertices[1]);
 		const x = (a.x + b.x) / 2;
@@ -339,7 +339,7 @@ export async function createScene(
 			view.roads.forEach((player, id) => {
 				if (player === null) return;
 				const edge = board.edges[id];
-				if (!edge) throw new Error("道路对应的棋盘边不存在");
+				if (!edge) throw new Failure("道路对应的棋盘边 {0} 不存在", id);
 				const a = coordinates(board, edge.vertices[0]);
 				const b = coordinates(board, edge.vertices[1]);
 				const line = new Graphics()

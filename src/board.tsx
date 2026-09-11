@@ -1,7 +1,7 @@
 import { Focus, Minus, Plus } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import type { Action, GameView } from "./bindings";
-import { useText } from "./locale";
+import type { Action, GameView, Text } from "./bindings";
+import { errorText, useText } from "./locale";
 import type { BoardOption, Scene } from "./scene";
 
 export function BoardCanvas({
@@ -21,10 +21,14 @@ export function BoardCanvas({
 	const element = useRef<HTMLDivElement>(null);
 	const scene = useRef<Scene | null>(null);
 	const current = useRef({ game, options, act, t, strength });
-	const [error, setError] = useState<string | null>(null);
+	const [error, setError] = useState<Text | null>(null);
 	useEffect(() => {
 		current.current = { game, options, act, t, strength };
-		scene.current?.update(game, options, act, t, strength);
+		try {
+			scene.current?.update(game, options, act, t, strength);
+		} catch (cause) {
+			setError(errorText(cause));
+		}
 	}, [game, options, act, t, strength]);
 	useEffect(() => {
 		const root = element.current;
@@ -63,7 +67,7 @@ export function BoardCanvas({
 				);
 			})
 			.catch((cause) => {
-				if (!disposed) setError(String(cause));
+				if (!disposed) setError(errorText(cause));
 			});
 		return () => {
 			disposed = true;
@@ -77,7 +81,7 @@ export function BoardCanvas({
 			{children}
 			{error && (
 				<div className="board-error" role="alert">
-					{t("棋盘无法绘制：{0}", error)}
+					{t("棋盘无法绘制：{0}", t(error))}
 				</div>
 			)}
 			<div className="board-navigation">

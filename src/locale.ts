@@ -25,7 +25,23 @@ export function translator(language: Language) {
 
 export type Translate = ReturnType<typeof translator>;
 
+export class Failure extends Error {
+	readonly text: Text;
+
+	constructor(key: string, ...values: (Text | number)[]) {
+		const text: Text = {
+			key,
+			args: values.map((value) =>
+				typeof value === "number" ? String(value) : value,
+			),
+		};
+		super(translator("en")(text));
+		this.text = text;
+	}
+}
+
 export function errorText(cause: unknown): Text {
+	if (cause instanceof Failure) return cause.text;
 	if (cause && typeof cause === "object" && "key" in cause && "args" in cause)
 		return cause as Text;
 	return cause instanceof Error ? cause.message : String(cause);

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Preferences, RoomView } from "./bindings";
+import { Failure } from "./locale";
 
 class Sound {
 	readonly context = new AudioContext();
@@ -40,7 +41,12 @@ class Sound {
 				] as const
 			).map(async ([name, channel]) => {
 				const response = await fetch(`/audio/${name}.wav`);
-				if (!response.ok) throw new Error(`无法读取声音资源：${name}`);
+				if (!response.ok)
+					throw new Failure(
+						"无法读取声音资源 {0}：HTTP {1}",
+						name,
+						response.status,
+					);
 				const buffer = await this.context.decodeAudioData(
 					await response.arrayBuffer(),
 				);
