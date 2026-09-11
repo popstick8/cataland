@@ -8,6 +8,8 @@ pub mod economy;
 pub mod game;
 pub mod knights;
 pub mod progress;
+pub mod progress_actions;
+pub mod progress_choices;
 pub mod room;
 pub mod view;
 

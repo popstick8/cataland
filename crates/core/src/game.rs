@@ -81,6 +81,9 @@ pub struct Turn {
     pub development: bool,
     pub token_action: bool,
     pub sacrifice: bool,
+    pub fleet: Option<Resource>,
+    pub cranes: u8,
+    pub harbors: Vec<u8>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -94,6 +97,8 @@ pub enum Target {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Action {
+    PlayProgress { card: crate::progress::Progress },
+    HarborTrade { target: usize },
     RecruitKnight { vertex: usize },
     PromoteKnight { vertex: usize },
     ActivateKnight { vertex: usize },
@@ -122,6 +127,10 @@ pub enum Action {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Effect {
+    Progress {
+        player: usize,
+        choice: crate::progress_choices::ProgressChoice,
+    },
     Production {
         player: usize,
         total: u8,
@@ -191,7 +200,8 @@ pub enum Effect {
 impl Effect {
     pub fn player(&self) -> usize {
         match self {
-            Self::Production { player, .. }
+            Self::Progress { player, .. }
+            | Self::Production { player, .. }
             | Self::EndTurn { player }
             | Self::DrawProgress { player, .. }
             | Self::ProgressDiscard { player }
@@ -314,6 +324,9 @@ impl Game {
                 development: false,
                 token_action: false,
                 sacrifice: false,
+                fleet: None,
+                cranes: 0,
+                harbors: vec![0; seats.len()],
             },
             starter,
             pending: VecDeque::new(),
@@ -447,7 +460,15 @@ impl Game {
                 self.play_card(player, card)?
             }
             (Stage::Action, Action::BuyDevelopment) => self.buy_development(player)?,
-            (Stage::Action, Action::Improve { track }) => self.improve(player, track, 0)?,
+            (Stage::Production | Stage::Action, Action::PlayProgress { card }) => {
+                self.play_progress(player, card)?
+            }
+            (Stage::Action, Action::HarborTrade { target }) => self.harbor_trade(player, target)?,
+            (Stage::Action, Action::Improve { track }) => {
+                let discount = self.crane_discount(player);
+                self.improve(player, track, discount)?;
+                self.turn.cranes -= discount;
+            }
             (Stage::Action, Action::BuildWall { vertex }) => {
                 self.build_wall(player, vertex, &crate::cities::WALL)?
             }
@@ -543,6 +564,12 @@ impl Game {
             .count() as u16;
         buildings
             + metropolises * 2
+            + u16::from(
+                self.cities
+                    .as_ref()
+                    .and_then(|cities| cities.merchant.as_ref())
+                    .is_some_and(|merchant| merchant.player == player),
+            )
             + self.players[player].defender
             + self.players[player].revealed.len() as u16
             + u16::from(self.awards.road == Some(player)) * 2
@@ -743,6 +770,9 @@ impl Game {
         self.turn.development = false;
         self.turn.token_action = false;
         self.turn.sacrifice = false;
+        self.turn.fleet = None;
+        self.turn.cranes = 0;
+        self.turn.harbors.fill(0);
         self.turn.number += 1;
         if self.humans >= 5 && self.turn.player == self.turn.primary {
             self.turn.player = (self.turn.primary + 3) % self.humans;
@@ -758,6 +788,11 @@ impl Game {
     pub fn advance(&mut self) {
         while let Some(effect) = self.pending.front().cloned() {
             match effect {
+                Effect::Progress { player, choice }
+                    if !self.progress_available(player, &choice) =>
+                {
+                    self.pending.pop_front();
+                }
                 Effect::Production { total, .. } => {
                     self.pending.pop_front();
                     self.settle_production(total);
@@ -817,6 +852,9 @@ impl Game {
         let index = self.pending_index(player).ok_or("当前由其他玩家完成选择")?;
         let effect = self.pending[index].clone();
         match (effect, action) {
+            (Effect::Progress { choice, .. }, action) => {
+                self.resolve_progress(player, index, choice, action)?
+            }
             (Effect::Pillage { .. }, Action::Pick { value }) => {
                 self.pillage(player, value)?;
                 self.pending.remove(index);

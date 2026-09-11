@@ -53,6 +53,7 @@ impl Track {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Cities {
+    pub merchant: Option<crate::progress_actions::Merchant>,
     pub barbarians: u8,
     pub attacks: u32,
     pub event: Option<crate::barbarians::EventDie>,
@@ -66,6 +67,7 @@ pub struct Cities {
 impl Cities {
     pub fn new(vertices: usize) -> Self {
         Self {
+            merchant: None,
             barbarians: 0,
             attacks: 0,
             event: None,
@@ -80,6 +82,7 @@ impl Cities {
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct CityView {
+    pub merchant: Option<crate::progress_actions::Merchant>,
     pub barbarians: u8,
     pub attacks: u32,
     pub event: Option<crate::barbarians::EventDie>,
@@ -104,6 +107,7 @@ pub struct Improvement {
 impl Game {
     pub fn city_view(&self) -> Option<CityView> {
         self.cities.as_ref().map(|cities| CityView {
+            merchant: cities.merchant.clone(),
             barbarians: cities.barbarians,
             attacks: cities.attacks,
             event: cities.event,
@@ -291,7 +295,7 @@ impl Game {
                     name: track.building(level).into(),
                     next: (level < 5).then(|| track.building(level + 1).into()),
                     cost: if level < 5 {
-                        self.improvement_cost(player, track, 0)
+                        self.improvement_cost(player, track, self.crane_discount(player))
                     } else {
                         [0; 8]
                     },
@@ -306,12 +310,12 @@ impl Game {
             return actions;
         }
         for track in Track::ALL {
-            if self.can_improve(player, track, 0) {
+            if self.can_improve(player, track, self.crane_discount(player)) {
                 actions.push(AvailableAction {
                     action: Action::Improve { track },
                     label: format!("提升{}", track.name()),
                     target: None,
-                    cost: self.improvement_cost(player, track, 0),
+                    cost: self.improvement_cost(player, track, self.crane_discount(player)),
                 });
             }
         }

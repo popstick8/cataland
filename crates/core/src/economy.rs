@@ -54,6 +54,20 @@ impl Game {
         {
             rate = rate.min(2);
         }
+        if player == self.turn.player && self.turn.fleet == Some(resource) {
+            rate = rate.min(2);
+        }
+        if self
+            .cities
+            .as_ref()
+            .and_then(|cities| cities.merchant.as_ref())
+            .is_some_and(|merchant| {
+                merchant.player == player
+                    && self.board.hexes[merchant.hex].terrain.resource() == Some(resource)
+            })
+        {
+            rate = rate.min(2);
+        }
         rate
     }
 

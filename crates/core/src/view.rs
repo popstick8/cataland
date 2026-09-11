@@ -27,7 +27,7 @@ pub struct PlayerView {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PrivateView {
-    pub progress: Vec<crate::progress::Progress>,
+    pub progress: Vec<crate::progress_actions::ProgressView>,
     pub improvements: Vec<crate::cities::Improvement>,
     pub hand_limit: u16,
     pub can_offer: bool,
@@ -131,7 +131,7 @@ impl Game {
             stage: self.stage.clone(),
             turn: self.turn.clone(),
             private: viewer.map(|player| PrivateView {
-                progress: self.players[player].progress.clone(),
+                progress: self.progress_view(player),
                 improvements: self.improvements(player),
                 hand_limit: self.hand_limit(player),
                 can_offer: self.can_offer(player),
@@ -321,6 +321,7 @@ impl Game {
             Stage::Ended => {}
         }
         actions.extend(self.card_actions(player));
+        actions.extend(self.progress_actions(player));
         actions.extend(self.token_actions(player));
         actions.extend(self.knight_actions(player));
         if self.stage == Stage::Action {
@@ -389,6 +390,9 @@ impl Game {
             }
             Effect::ReturnCards { commodities, .. } => {
                 self.return_prompt(*commodities, &mut prompt, active)
+            }
+            Effect::Progress { player, choice } => {
+                self.progress_prompt(*player, choice, active, &mut prompt)
             }
             Effect::ProgressDiscard { player } => {
                 self.progress_discard_prompt(*player, active, &mut prompt)
