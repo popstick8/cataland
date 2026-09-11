@@ -101,11 +101,15 @@ export function GameTable({
 			!choice.target &&
 			![
 				"bankTrade",
+				"tokens",
 				"playCard",
 				"respondTrade",
 				"completeTrade",
 				"cancelTrade",
 			].includes(choice.action.type),
+	);
+	const tokenActions = game.actions.filter(
+		(choice) => choice.action.type === "tokens",
 	);
 	const cards = game.private?.cards ?? [];
 	const cardTypes = cards.filter(
@@ -323,6 +327,24 @@ export function GameTable({
 						</section>
 					)}
 					<Trading game={game} room={room} act={act} busy={session.busy} />
+					{game.humans === 2 && room.you !== null && (
+						<section className="game-panel">
+							<h3>贸易筹码 · {game.players[room.you]?.tokens}</h3>
+							<p className="muted">供应剩余 {game.tokens} 个</p>
+							<div className="development-cards">
+								{tokenActions.map((choice) => (
+									<button
+										type="button"
+										key={choice.label}
+										disabled={session.busy}
+										onClick={() => act(choice.action)}
+									>
+										{choice.label}
+									</button>
+								))}
+							</div>
+						</section>
+					)}
 					{cardTypes.length > 0 && (
 						<section className="game-panel">
 							<h3>发展卡</h3>

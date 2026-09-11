@@ -35,6 +35,7 @@ pub struct Player {
     pub cities: u8,
     pub cards: Vec<HeldCard>,
     pub army: u8,
+    pub tokens: u8,
 }
 
 impl Player {
@@ -48,6 +49,7 @@ impl Player {
             cities: 4,
             cards: Vec::new(),
             army: 0,
+            tokens: 0,
         }
     }
 }
@@ -62,12 +64,15 @@ pub enum Stage {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct Turn {
     pub player: usize,
     pub primary: usize,
     pub number: u32,
     pub dice: Vec<[u8; 2]>,
     pub development: bool,
+    pub token_action: bool,
+    pub sacrifice: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -81,6 +86,7 @@ pub enum Target {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Action {
+    Tokens { action: crate::duel::TokenAction },
     BuildSettlement { vertex: usize },
     BuildRoad { edge: usize },
     BuildCity { vertex: usize },
@@ -100,6 +106,10 @@ pub enum Action {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Effect {
+    ReturnCards {
+        player: usize,
+        commodities: bool,
+    },
     Neutral {
         player: usize,
         kind: crate::duel::NeutralBuild,
@@ -132,7 +142,8 @@ pub enum Effect {
 impl Effect {
     pub fn player(&self) -> usize {
         match self {
-            Self::Discard { player, .. }
+            Self::ReturnCards { player, .. }
+            | Self::Discard { player, .. }
             | Self::Neutral { player, .. }
             | Self::Robber { player }
             | Self::Steal { player, .. }
@@ -162,6 +173,7 @@ pub struct Event {
 pub struct Game {
     pub mode: Mode,
     pub humans: usize,
+    pub tokens: u8,
     pub board: Board,
     pub players: Vec<Player>,
     pub buildings: Vec<Option<Building>>,
@@ -219,6 +231,7 @@ impl Game {
         let mut game = Self {
             mode,
             humans: seats.len(),
+            tokens: if seats.len() == 2 { 10 } else { 0 },
             buildings: vec![None; board.vertices.len()],
             roads: vec![None; board.edges.len()],
             board,
@@ -238,6 +251,8 @@ impl Game {
                 number: 0,
                 dice: Vec::new(),
                 development: false,
+                token_action: false,
+                sacrifice: false,
             },
             starter,
             pending: VecDeque::new(),
@@ -311,6 +326,9 @@ impl Game {
                     ),
                     Some(Target::Vertex(vertex)),
                 );
+                if kind == BuildingKind::Settlement {
+                    self.settlement_tokens(player, vertex);
+                }
                 self.stage = Stage::Setup {
                     step,
                     road: Some(vertex),
@@ -360,6 +378,9 @@ impl Game {
                 }
             }
             (Stage::Production, Action::Roll) => self.roll(),
+            (Stage::Production | Stage::Action, Action::Tokens { action }) => {
+                self.use_token(player, action)?
+            }
             (Stage::Production | Stage::Action, Action::PlayCard { card }) => {
                 self.play_card(player, card)?
             }
@@ -576,6 +597,8 @@ impl Game {
     fn end_turn(&mut self) {
         self.trade = None;
         self.turn.development = false;
+        self.turn.token_action = false;
+        self.turn.sacrifice = false;
         self.turn.number += 1;
         if self.humans >= 5 && self.turn.player == self.turn.primary {
             self.turn.player = (self.turn.primary + 3) % self.humans;
@@ -659,45 +682,69 @@ impl Game {
             (Effect::Neutral { kind, owner, .. }, action) => {
                 self.resolve_neutral(player, kind, owner, action)?
             }
+            (Effect::ReturnCards { commodities, .. }, action) => {
+                self.return_cards(player, commodities, action)?
+            }
             (effect, action) => self.resolve_card(player, index, effect, action)?,
         }
         Ok(())
     }
 
-    fn steal(&mut self, player: usize, target: usize) {
-        let total: u16 = self.players[target].hand.iter().sum();
+    pub fn take_random(
+        &mut self,
+        player: usize,
+        target: usize,
+        resources: &[Resource],
+    ) -> Option<Resource> {
+        let total: u16 = resources
+            .iter()
+            .map(|resource| self.players[target].hand[resource.index()])
+            .sum();
         if total == 0 {
-            return;
+            return None;
         }
         let mut pick = fastrand::u16(..total);
-        for resource in Resource::ALL {
+        for &resource in resources {
             let index = resource.index();
             let count = self.players[target].hand[index];
             if pick < count {
                 self.players[target].hand[index] -= 1;
                 self.players[player].hand[index] += 1;
-                self.record(
-                    Some(player),
-                    "steal",
-                    format!(
-                        "{}从{}处取得一张牌",
-                        self.players[player].name, self.players[target].name
-                    ),
-                    None,
-                );
-                self.events.push(Event {
-                    message: GameEvent {
-                        seq: self.events.len() as u64 + 1,
-                        player: Some(player),
-                        kind: "private".into(),
-                        text: format!("取得的牌是{}", resource.name()),
-                        target: None,
-                    },
-                    audience: vec![player, target],
-                });
-                return;
+                return Some(resource);
             }
             pick -= count;
+        }
+        None
+    }
+
+    pub fn private_event(&mut self, audience: Vec<usize>, text: String) {
+        self.events.push(Event {
+            message: GameEvent {
+                seq: self.events.len() as u64 + 1,
+                player: audience.first().copied(),
+                kind: "private".into(),
+                text,
+                target: None,
+            },
+            audience,
+        });
+    }
+
+    pub fn steal(&mut self, player: usize, target: usize) {
+        if let Some(resource) = self.take_random(player, target, &Resource::ALL) {
+            self.record(
+                Some(player),
+                "steal",
+                format!(
+                    "{}从{}处取得一张牌",
+                    self.players[player].name, self.players[target].name
+                ),
+                None,
+            );
+            self.private_event(
+                vec![player, target],
+                format!("取得的牌是{}", resource.name()),
+            );
         }
     }
 }

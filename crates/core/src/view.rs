@@ -16,6 +16,7 @@ pub struct PlayerView {
     pub hand_count: u16,
     pub card_count: usize,
     pub army: u8,
+    pub tokens: u8,
     pub roads: u8,
     pub settlements: u8,
     pub cities: u8,
@@ -66,6 +67,7 @@ pub struct Prompt {
 pub struct GameView {
     pub mode: Mode,
     pub humans: usize,
+    pub tokens: u8,
     pub board: Board,
     pub players: Vec<PlayerView>,
     pub buildings: Vec<Option<Building>>,
@@ -90,6 +92,7 @@ impl Game {
         GameView {
             mode: self.mode,
             humans: self.humans,
+            tokens: self.tokens,
             board: self.board.clone(),
             players: self
                 .players
@@ -106,6 +109,7 @@ impl Game {
                     hand_count: data.hand.iter().sum(),
                     card_count: data.cards.len(),
                     army: data.army,
+                    tokens: data.tokens,
                     roads: data.roads,
                     settlements: data.settlements,
                     cities: data.cities,
@@ -305,6 +309,7 @@ impl Game {
             Stage::Ended => {}
         }
         actions.extend(self.card_actions(player));
+        actions.extend(self.token_actions(player));
         actions
     }
 
@@ -365,6 +370,9 @@ impl Game {
             }
             Effect::Neutral { kind, owner, .. } => {
                 self.neutral_prompt(*kind, *owner, &mut prompt, active)
+            }
+            Effect::ReturnCards { commodities, .. } => {
+                self.return_prompt(*commodities, &mut prompt, active)
             }
             effect => self.card_prompt(effect, &mut prompt, active),
         }

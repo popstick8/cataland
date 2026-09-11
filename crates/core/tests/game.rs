@@ -109,6 +109,12 @@ fn complete_games_conserve_resources() {
             };
             game.apply(player, action.clone())
                 .unwrap_or_else(|error| panic!("{action:?}: {error}"));
+            if count == 2 {
+                assert_eq!(
+                    game.tokens + game.players.iter().map(|player| player.tokens).sum::<u8>(),
+                    20
+                );
+            }
             for resource in 0..8 {
                 let total = game.bank[resource]
                     + game

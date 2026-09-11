@@ -83,6 +83,7 @@ impl Game {
             return Err("请选择连接自己道路且满足建筑间距的位置".into());
         }
         self.pay(player, &SETTLEMENT)?;
+        self.settlement_tokens(player, vertex);
         self.players[player].settlements -= 1;
         self.buildings[vertex] = Some(Building {
             player,
