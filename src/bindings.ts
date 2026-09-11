@@ -93,6 +93,7 @@ export type GameEvent = {
 
 export type GameView = {
 	mode: Mode;
+	humans: number;
 	board: Board;
 	players: Array<PlayerView>;
 	buildings: Array<Building | null>;
@@ -254,6 +255,7 @@ export type Trade = {
 
 export type Turn = {
 	player: number;
+	primary: number;
 	number: number;
 	dice: Array<[number, number]>;
 	development: boolean;

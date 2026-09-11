@@ -7,9 +7,9 @@ use cataland_core::{
 
 #[test]
 fn complete_games_conserve_resources() {
-    for seed in 0..4 {
+    for (seed, count) in [(0, 3), (1, 4), (2, 5), (3, 6)] {
         fastrand::seed(seed);
-        let seats: Vec<_> = (0..3)
+        let seats: Vec<_> = (0..count)
             .map(|color| Seat {
                 name: format!("Player {color}"),
                 color,
@@ -116,7 +116,14 @@ fn complete_games_conserve_resources() {
                         .iter()
                         .map(|player| player.hand[resource])
                         .sum::<u16>();
-                assert_eq!(total, if resource < 5 { 19 } else { 0 });
+                assert_eq!(
+                    total,
+                    if resource < 5 {
+                        if count >= 5 { 24 } else { 19 }
+                    } else {
+                        0
+                    }
+                );
             }
         }
         assert!(

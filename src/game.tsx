@@ -94,6 +94,8 @@ export function GameTable({
 			);
 	const actor = game.players[prompt?.player ?? game.turn.player];
 	const dice = game.turn.dice.at(-1);
+	const previousDice =
+		game.turn.dice.length > 1 ? game.turn.dice[0] : undefined;
 	const primary = game.actions.filter(
 		(choice) =>
 			!choice.target &&
@@ -129,6 +131,11 @@ export function GameTable({
 					{game.stage.type === "setup"
 						? "初始放置"
 						: `第 ${game.turn.number} 回合`}
+					{game.humans >= 5 &&
+						game.stage.type !== "setup" &&
+						(game.turn.player === game.turn.primary
+							? " · 主回合"
+							: " · 配对行动")}
 				</span>
 			</header>
 			<div className="players-strip">
@@ -201,6 +208,11 @@ export function GameTable({
 						</div>
 						{dice && (
 							<div className="dice">
+								{previousDice && (
+									<small className="muted">
+										首次 {previousDice[0] + previousDice[1]}
+									</small>
+								)}
 								<Die value={dice[0]} red={game.mode === "cities"} />
 								<Die value={dice[1]} />
 							</div>

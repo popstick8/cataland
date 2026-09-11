@@ -49,6 +49,7 @@ pub enum Stage {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct Turn {
     pub player: usize,
+    pub primary: usize,
     pub number: u32,
     pub dice: Vec<[u8; 2]>,
     pub development: bool,
@@ -123,6 +124,7 @@ pub struct Event {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Game {
     pub mode: Mode,
+    pub humans: usize,
     pub board: Board,
     pub players: Vec<Player>,
     pub buildings: Vec<Option<Building>>,
@@ -179,6 +181,7 @@ impl Game {
         }
         Ok(Self {
             mode,
+            humans: seats.len(),
             buildings: vec![None; board.vertices.len()],
             roads: vec![None; board.edges.len()],
             board,
@@ -203,6 +206,7 @@ impl Game {
             },
             turn: Turn {
                 player: starter,
+                primary: starter,
                 number: 0,
                 dice: Vec::new(),
                 development: false,
@@ -222,7 +226,7 @@ impl Game {
     }
 
     pub fn apply(&mut self, player: usize, action: Action) -> Result<(), String> {
-        if player >= self.players.len() {
+        if player >= self.humans {
             return Err("这个席位不在对局中".into());
         }
         if self.stage == Stage::Ended {
@@ -246,7 +250,7 @@ impl Game {
                 if !self.can_settle(player, vertex, true) {
                     return Err("请选择与已有建筑间隔一个顶点的空位置".into());
                 }
-                let kind = if self.mode == Mode::Cities && step >= self.players.len() {
+                let kind = if self.mode == Mode::Cities && step >= self.humans {
                     BuildingKind::City
                 } else {
                     BuildingKind::Settlement
@@ -256,7 +260,7 @@ impl Game {
                     BuildingKind::Settlement => self.players[player].settlements -= 1,
                     BuildingKind::City => self.players[player].cities -= 1,
                 }
-                if step >= self.players.len() {
+                if step >= self.humans {
                     for hex in self.board.vertices[vertex].hexes.clone() {
                         if let Some(resource) = self.board.hexes[hex].terrain.resource() {
                             self.take_bank(player, resource, 1);
@@ -308,17 +312,17 @@ impl Game {
                     Some(Target::Edge(edge)),
                 );
                 let next = step + 1;
-                if next == self.players.len() * 2 {
+                if next == self.humans * 2 {
                     self.stage = Stage::Production;
                     self.turn.player = self.starter;
                     self.turn.number = 1;
                 } else {
-                    let position = if next < self.players.len() {
+                    let position = if next < self.humans {
                         next
                     } else {
-                        self.players.len() * 2 - 1 - next
+                        self.humans * 2 - 1 - next
                     };
-                    self.turn.player = (self.starter + position) % self.players.len();
+                    self.turn.player = (self.starter + position) % self.humans;
                     self.stage = Stage::Setup {
                         step: next,
                         road: None,
@@ -437,10 +441,20 @@ impl Game {
     }
 
     fn roll(&mut self) {
-        let dice = [fastrand::u8(1..=6), fastrand::u8(1..=6)];
+        let previous = self.turn.dice.first().map(|dice| dice[0] + dice[1]);
+        let dice = loop {
+            let dice = [fastrand::u8(1..=6), fastrand::u8(1..=6)];
+            if self.humans != 2 || Some(dice[0] + dice[1]) != previous {
+                break dice;
+            }
+        };
         let total = dice[0] + dice[1];
         self.turn.dice.push(dice);
-        self.stage = Stage::Action;
+        self.stage = if self.humans == 2 && self.turn.dice.len() == 1 {
+            Stage::Production
+        } else {
+            Stage::Action
+        };
         self.record(
             Some(self.turn.player),
             "roll",
@@ -451,7 +465,7 @@ impl Game {
             None,
         );
         if total == 7 {
-            for (player, data) in self.players.iter().enumerate() {
+            for (player, data) in self.players.iter().take(self.humans).enumerate() {
                 let count: u16 = data.hand.iter().sum();
                 if count > 7 {
                     self.pending.push_back(Effect::Discard {
@@ -471,7 +485,7 @@ impl Game {
     }
 
     fn produce(&mut self, total: u8) {
-        let mut demand = vec![[0; 8]; self.players.len()];
+        let mut demand = vec![[0; 8]; self.humans];
         for (vertex, building) in self.buildings.iter().enumerate() {
             let Some(building) = building else {
                 continue;
@@ -529,10 +543,16 @@ impl Game {
     fn end_turn(&mut self) {
         self.trade = None;
         self.turn.development = false;
-        self.turn.player = (self.turn.player + 1) % self.players.len();
         self.turn.number += 1;
-        self.turn.dice.clear();
-        self.stage = Stage::Production;
+        if self.humans >= 5 && self.turn.player == self.turn.primary {
+            self.turn.player = (self.turn.primary + 3) % self.humans;
+            self.stage = Stage::Action;
+        } else {
+            self.turn.primary = (self.turn.primary + 1) % self.humans;
+            self.turn.player = self.turn.primary;
+            self.turn.dice.clear();
+            self.stage = Stage::Production;
+        }
     }
 
     pub fn pending_index(&self, player: usize) -> Option<usize> {

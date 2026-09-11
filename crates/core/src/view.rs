@@ -65,6 +65,7 @@ pub struct Prompt {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct GameView {
     pub mode: Mode,
+    pub humans: usize,
     pub board: Board,
     pub players: Vec<PlayerView>,
     pub buildings: Vec<Option<Building>>,
@@ -88,6 +89,7 @@ impl Game {
         let viewer = viewer.filter(|&player| player < self.players.len());
         GameView {
             mode: self.mode,
+            humans: self.humans,
             board: self.board.clone(),
             players: self
                 .players
@@ -211,7 +213,12 @@ impl Game {
             }
             Stage::Production => actions.push(AvailableAction {
                 action: Action::Roll,
-                label: "掷骰子".into(),
+                label: if self.turn.dice.is_empty() {
+                    "掷骰子"
+                } else {
+                    "第二次掷骰"
+                }
+                .into(),
                 target: None,
                 cost: [0; 8],
             }),

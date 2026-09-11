@@ -21,8 +21,9 @@ pub struct Trade {
 
 impl Game {
     pub fn can_offer(&self, player: usize) -> bool {
-        self.players.len() > 2
+        self.humans > 2
             && player == self.turn.player
+            && player == self.turn.primary
             && self.stage == Stage::Action
             && self.pending.is_empty()
     }
