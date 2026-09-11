@@ -6,12 +6,14 @@ import { Home, Lobby } from "./lobby";
 import { PreferencesPanel } from "./preferences";
 import { ConnectionNotice } from "./rooms";
 import { useSession } from "./session";
+import { useSound } from "./sound";
 import "./style.css";
 
 export function App() {
 	const session = useSession();
 	const [settings, setSettings] = useState(false);
 	const { report } = session;
+	useSound(session.view?.preferences, session.view?.room, report);
 	useEffect(() => {
 		const key = (event: KeyboardEvent) => {
 			if (event.key !== "F11") return;
