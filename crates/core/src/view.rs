@@ -25,6 +25,8 @@ pub struct PlayerView {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PrivateView {
+    pub improvements: Vec<crate::cities::Improvement>,
+    pub hand_limit: u16,
     pub can_offer: bool,
     pub hand: Cards,
     pub points: u16,
@@ -65,6 +67,7 @@ pub struct Prompt {
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct GameView {
+    pub cities: Option<crate::cities::CityView>,
     pub mode: Mode,
     pub humans: usize,
     pub tokens: u8,
@@ -90,6 +93,7 @@ impl Game {
     pub fn view(&self, viewer: Option<usize>) -> GameView {
         let viewer = viewer.filter(|&player| player < self.humans);
         GameView {
+            cities: self.city_view(),
             mode: self.mode,
             humans: self.humans,
             tokens: self.tokens,
@@ -122,6 +126,8 @@ impl Game {
             stage: self.stage.clone(),
             turn: self.turn.clone(),
             private: viewer.map(|player| PrivateView {
+                improvements: self.improvements(player),
+                hand_limit: self.hand_limit(player),
                 can_offer: self.can_offer(player),
                 hand: self.players[player].hand,
                 points: self.score(player),
@@ -310,6 +316,9 @@ impl Game {
         }
         actions.extend(self.card_actions(player));
         actions.extend(self.token_actions(player));
+        if self.stage == Stage::Action {
+            actions.extend(self.city_actions(player));
+        }
         actions
     }
 
@@ -373,6 +382,9 @@ impl Game {
             }
             Effect::ReturnCards { commodities, .. } => {
                 self.return_prompt(*commodities, &mut prompt, active)
+            }
+            Effect::Metropolis { player, track } => {
+                self.metropolis_prompt(*player, *track, active, &mut prompt)
             }
             effect => self.card_prompt(effect, &mut prompt, active),
         }

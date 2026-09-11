@@ -48,6 +48,12 @@ impl Game {
                 }
             }
         }
+        if self.mode == Mode::Cities
+            && self.players[player].upgrades[crate::cities::Track::Trade.index()] >= 3
+            && resource.index() >= 5
+        {
+            rate = rate.min(2);
+        }
         rate
     }
 

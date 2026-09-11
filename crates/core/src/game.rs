@@ -35,6 +35,7 @@ pub struct Player {
     pub cities: u8,
     pub cards: Vec<HeldCard>,
     pub army: u8,
+    pub upgrades: [u8; 3],
     pub tokens: u8,
 }
 
@@ -49,6 +50,7 @@ impl Player {
             cities: 4,
             cards: Vec::new(),
             army: 0,
+            upgrades: [0; 3],
             tokens: 0,
         }
     }
@@ -86,6 +88,8 @@ pub enum Target {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Action {
+    Improve { track: crate::cities::Track },
+    BuildWall { vertex: usize },
     Tokens { action: crate::duel::TokenAction },
     BuildSettlement { vertex: usize },
     BuildRoad { edge: usize },
@@ -106,6 +110,10 @@ pub enum Action {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Effect {
+    Metropolis {
+        player: usize,
+        track: crate::cities::Track,
+    },
     ReturnCards {
         player: usize,
         commodities: bool,
@@ -142,7 +150,8 @@ pub enum Effect {
 impl Effect {
     pub fn player(&self) -> usize {
         match self {
-            Self::ReturnCards { player, .. }
+            Self::Metropolis { player, .. }
+            | Self::ReturnCards { player, .. }
             | Self::Discard { player, .. }
             | Self::Neutral { player, .. }
             | Self::Robber { player }
@@ -172,6 +181,7 @@ pub struct Event {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Game {
     pub mode: Mode,
+    pub cities: Option<crate::cities::Cities>,
     pub humans: usize,
     pub tokens: u8,
     pub board: Board,
@@ -230,6 +240,7 @@ impl Game {
         }
         let mut game = Self {
             mode,
+            cities: (mode == Mode::Cities).then(crate::cities::Cities::default),
             humans: seats.len(),
             tokens: if seats.len() == 2 { 10 } else { 0 },
             buildings: vec![None; board.vertices.len()],
@@ -282,6 +293,7 @@ impl Game {
         }
         if !self.pending.is_empty() {
             self.resolve(player, action)?;
+            self.advance();
             self.update_awards();
             self.check_victory();
             return Ok(());
@@ -385,10 +397,15 @@ impl Game {
                 self.play_card(player, card)?
             }
             (Stage::Action, Action::BuyDevelopment) => self.buy_development(player)?,
+            (Stage::Action, Action::Improve { track }) => self.improve(player, track, 0)?,
+            (Stage::Action, Action::BuildWall { vertex }) => {
+                self.build_wall(player, vertex, &crate::cities::WALL)?
+            }
             (Stage::Action, Action::EndTurn) => self.end_turn(),
             (Stage::Action, action) => self.economy(player, action)?,
             _ => return Err("这个动作不属于当前阶段".into()),
         }
+        self.advance();
         self.update_awards();
         self.check_victory();
         Ok(())
@@ -440,7 +457,12 @@ impl Game {
                 BuildingKind::City => 2,
             })
             .sum();
+        let metropolises = crate::cities::Track::ALL
+            .into_iter()
+            .filter(|&track| self.metropolis_owner(track) == Some(player))
+            .count() as u16;
         buildings
+            + metropolises * 2
             + u16::from(self.awards.road == Some(player)) * 2
             + u16::from(self.awards.army == Some(player)) * 2
     }
@@ -518,7 +540,7 @@ impl Game {
         if total == 7 {
             for (player, data) in self.players.iter().take(self.humans).enumerate() {
                 let count: u16 = data.hand.iter().sum();
-                if count > 7 {
+                if count > self.hand_limit(player) {
                     self.pending.push_back(Effect::Discard {
                         player,
                         count: count / 2,
@@ -535,8 +557,9 @@ impl Game {
         }
     }
 
-    fn produce(&mut self, total: u8) {
+    pub fn produce(&mut self, total: u8) {
         let mut demand = vec![[0; 8]; self.humans];
+        let mut received = vec![false; self.humans];
         for (vertex, building) in self.buildings.iter().enumerate() {
             let Some(building) = building else {
                 continue;
@@ -578,6 +601,7 @@ impl Game {
             for (player, hand) in demand.iter().enumerate() {
                 let amount = self.take_bank(player, resource, hand[index]);
                 if amount > 0 {
+                    received[player] = true;
                     self.record(
                         Some(player),
                         "production",
@@ -589,6 +613,17 @@ impl Game {
                         ),
                         None,
                     );
+                }
+            }
+        }
+        if self.bank[..5].iter().any(|&count| count > 0) {
+            for offset in 0..self.humans {
+                let player = (self.turn.player + offset) % self.humans;
+                if !received[player]
+                    && self.players[player].upgrades[crate::cities::Track::Science.index()] >= 3
+                {
+                    self.pending
+                        .push_back(Effect::BankCards { player, count: 1 });
                 }
             }
         }
@@ -608,6 +643,23 @@ impl Game {
             self.turn.player = self.turn.primary;
             self.turn.dice.clear();
             self.stage = Stage::Production;
+        }
+    }
+
+    pub fn advance(&mut self) {
+        loop {
+            let complete = match self.pending.front() {
+                Some(Effect::BankCards { .. }) => self.bank[..5].iter().all(|&count| count == 0),
+                Some(Effect::FreeRoad { player, .. }) => {
+                    self.players[*player].roads == 0
+                        || !(0..self.board.edges.len()).any(|edge| self.can_road(*player, edge))
+                }
+                _ => false,
+            };
+            if !complete {
+                break;
+            }
+            self.pending.pop_front();
         }
     }
 
@@ -684,6 +736,10 @@ impl Game {
             }
             (Effect::ReturnCards { commodities, .. }, action) => {
                 self.return_cards(player, commodities, action)?
+            }
+            (Effect::Metropolis { track, .. }, Action::Pick { value }) => {
+                self.place_metropolis(player, track, value)?;
+                self.pending.remove(index);
             }
             (effect, action) => self.resolve_card(player, index, effect, action)?,
         }
