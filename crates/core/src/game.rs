@@ -88,6 +88,12 @@ pub enum Target {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Action {
+    RecruitKnight { vertex: usize },
+    PromoteKnight { vertex: usize },
+    ActivateKnight { vertex: usize },
+    MoveKnight { vertex: usize },
+    ExpelRobber { vertex: usize },
+    RetireKnight { vertex: usize },
     Improve { track: crate::cities::Track },
     BuildWall { vertex: usize },
     Tokens { action: crate::duel::TokenAction },
@@ -110,6 +116,15 @@ pub enum Action {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Effect {
+    MoveKnight {
+        player: usize,
+        from: usize,
+    },
+    Displace {
+        player: usize,
+        knight: crate::knights::Knight,
+        from: usize,
+    },
     Metropolis {
         player: usize,
         track: crate::cities::Track,
@@ -150,7 +165,9 @@ pub enum Effect {
 impl Effect {
     pub fn player(&self) -> usize {
         match self {
-            Self::Metropolis { player, .. }
+            Self::MoveKnight { player, .. }
+            | Self::Displace { player, .. }
+            | Self::Metropolis { player, .. }
             | Self::ReturnCards { player, .. }
             | Self::Discard { player, .. }
             | Self::Neutral { player, .. }
@@ -240,7 +257,8 @@ impl Game {
         }
         let mut game = Self {
             mode,
-            cities: (mode == Mode::Cities).then(crate::cities::Cities::default),
+            cities: (mode == Mode::Cities)
+                .then(|| crate::cities::Cities::new(board.vertices.len())),
             humans: seats.len(),
             tokens: if seats.len() == 2 { 10 } else { 0 },
             buildings: vec![None; board.vertices.len()],
@@ -401,6 +419,31 @@ impl Game {
             (Stage::Action, Action::BuildWall { vertex }) => {
                 self.build_wall(player, vertex, &crate::cities::WALL)?
             }
+            (Stage::Action, Action::RecruitKnight { vertex }) => {
+                self.place_knight(player, vertex, 1, false, &crate::knights::KNIGHT)?;
+                self.queue_neutral(player, crate::duel::NeutralBuild::Knight);
+            }
+            (Stage::Action, Action::PromoteKnight { vertex }) => {
+                if self.promote_knight(player, vertex, &crate::knights::KNIGHT)? == 1 {
+                    self.queue_neutral(player, crate::duel::NeutralBuild::Promotion);
+                }
+            }
+            (Stage::Action, Action::ActivateKnight { vertex }) => {
+                self.activate_knight(player, vertex, &crate::knights::ACTIVATE)?
+            }
+            (Stage::Action, Action::MoveKnight { vertex }) => {
+                if self.move_sites(player, vertex).is_empty() {
+                    return Err("请选择可以移动的骑士".into());
+                }
+                self.pending.push_front(Effect::MoveKnight {
+                    player,
+                    from: vertex,
+                });
+            }
+            (Stage::Action, Action::ExpelRobber { vertex }) => self.expel_robber(player, vertex)?,
+            (Stage::Production | Stage::Action, Action::RetireKnight { vertex }) => {
+                self.retire_knight(player, vertex)?
+            }
             (Stage::Action, Action::EndTurn) => self.end_turn(),
             (Stage::Action, action) => self.economy(player, action)?,
             _ => return Err("这个动作不属于当前阶段".into()),
@@ -414,6 +457,7 @@ impl Game {
     pub fn can_settle(&self, player: usize, vertex: usize, initial: bool) -> bool {
         self.board.vertices.get(vertex).is_some_and(|point| {
             self.buildings[vertex].is_none()
+                && self.knight(vertex).is_none()
                 && point
                     .neighbors
                     .iter()
@@ -430,6 +474,9 @@ impl Game {
         self.buildings[vertex]
             .as_ref()
             .is_some_and(|building| building.player != player)
+            || self
+                .knight(vertex)
+                .is_some_and(|knight| knight.player != player)
     }
 
     pub fn can_road(&self, player: usize, edge: usize) -> bool {
@@ -438,6 +485,7 @@ impl Game {
                 && line.vertices.iter().any(|&vertex| {
                     !self.blocked(player, vertex)
                         && (self.buildings[vertex].is_some()
+                            || self.knight(vertex).is_some()
                             || self.board.vertices[vertex]
                                 .edges
                                 .iter()
@@ -740,6 +788,9 @@ impl Game {
             (Effect::Metropolis { track, .. }, Action::Pick { value }) => {
                 self.place_metropolis(player, track, value)?;
                 self.pending.remove(index);
+            }
+            (effect @ (Effect::MoveKnight { .. } | Effect::Displace { .. }), action) => {
+                self.resolve_knight(player, index, effect, action)?
             }
             (effect, action) => self.resolve_card(player, index, effect, action)?,
         }

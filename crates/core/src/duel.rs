@@ -20,6 +20,8 @@ pub enum TokenAction {
 pub enum NeutralBuild {
     Road,
     Settlement,
+    Knight,
+    Promotion,
 }
 
 impl Game {
@@ -64,6 +66,13 @@ impl Game {
                     .filter(|&vertex| self.can_settle(owner, vertex, false))
                     .collect()
             }
+            NeutralBuild::Knight if self.knight_count(owner, 1) < 2 => self.knight_sites(owner),
+            NeutralBuild::Promotion => (0..self.board.vertices.len())
+                .filter(|&vertex| {
+                    self.knight(vertex).is_some_and(|knight| knight.level == 1)
+                        && self.can_promote(owner, vertex)
+                })
+                .collect(),
             _ => Vec::new(),
         }
     }
@@ -80,7 +89,7 @@ impl Game {
                 kind,
                 owner: None,
             });
-        } else if matches!(kind, NeutralBuild::Settlement) {
+        } else if matches!(kind, NeutralBuild::Settlement | NeutralBuild::Knight) {
             self.queue_neutral(player, NeutralBuild::Road);
         }
     }
@@ -101,6 +110,10 @@ impl Game {
             }
             match kind {
                 NeutralBuild::Road => self.build_road(owner, value, &[0; 8])?,
+                NeutralBuild::Knight => self.place_knight(owner, value, 1, false, &[0; 8])?,
+                NeutralBuild::Promotion => {
+                    self.promote_knight(owner, value, &[0; 8])?;
+                }
                 NeutralBuild::Settlement => {
                     self.players[owner].settlements -= 1;
                     self.buildings[value] = Some(Building {
@@ -140,12 +153,14 @@ impl Game {
         active: bool,
     ) {
         let name = match kind {
-            NeutralBuild::Road => "道路",
-            NeutralBuild::Settlement => "村庄",
+            NeutralBuild::Road => "建造道路",
+            NeutralBuild::Settlement => "建造村庄",
+            NeutralBuild::Knight => "招募骑士",
+            NeutralBuild::Promotion => "晋升骑士",
         };
         prompt.title = owner.map_or_else(
-            || format!("选择中立势力，免费建造{name}"),
-            |owner| format!("为{}建造{name}", self.players[owner].name),
+            || format!("选择中立势力，{name}"),
+            |owner| format!("为{}{name}", self.players[owner].name),
         );
         if !active {
             return;
@@ -155,10 +170,12 @@ impl Game {
                 .into_iter()
                 .map(|value| Pick {
                     value,
-                    label: format!("建造{name}"),
+                    label: name.into(),
                     target: Some(match kind {
                         NeutralBuild::Road => Target::Edge(value),
-                        NeutralBuild::Settlement => Target::Vertex(value),
+                        NeutralBuild::Settlement
+                        | NeutralBuild::Knight
+                        | NeutralBuild::Promotion => Target::Vertex(value),
                     }),
                 })
                 .collect()

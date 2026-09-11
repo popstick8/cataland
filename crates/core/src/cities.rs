@@ -51,15 +51,29 @@ impl Track {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Cities {
+    pub knights: Vec<Option<crate::knights::Knight>>,
     pub walls: Vec<usize>,
     pub metropolises: [Option<usize>; 3],
     pub ruins: Vec<usize>,
 }
 
+impl Cities {
+    pub fn new(vertices: usize) -> Self {
+        Self {
+            knights: vec![None; vertices],
+            walls: Vec::new(),
+            metropolises: [None; 3],
+            ruins: Vec::new(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct CityView {
+    pub knights: Vec<Option<crate::knights::Knight>>,
+    pub defense: Vec<u8>,
     pub upgrades: Vec<[u8; 3]>,
     pub walls: Vec<usize>,
     pub metropolises: [Option<usize>; 3],
@@ -78,6 +92,8 @@ pub struct Improvement {
 impl Game {
     pub fn city_view(&self) -> Option<CityView> {
         self.cities.as_ref().map(|cities| CityView {
+            knights: cities.knights.clone(),
+            defense: self.defense(),
             upgrades: self.players.iter().map(|player| player.upgrades).collect(),
             walls: cities.walls.clone(),
             metropolises: cities.metropolises,

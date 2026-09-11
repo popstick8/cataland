@@ -5,6 +5,7 @@ pub mod development;
 pub mod duel;
 pub mod economy;
 pub mod game;
+pub mod knights;
 pub mod room;
 pub mod view;
 

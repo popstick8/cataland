@@ -316,6 +316,7 @@ impl Game {
         }
         actions.extend(self.card_actions(player));
         actions.extend(self.token_actions(player));
+        actions.extend(self.knight_actions(player));
         if self.stage == Stage::Action {
             actions.extend(self.city_actions(player));
         }
@@ -385,6 +386,9 @@ impl Game {
             }
             Effect::Metropolis { player, track } => {
                 self.metropolis_prompt(*player, *track, active, &mut prompt)
+            }
+            effect @ (Effect::MoveKnight { .. } | Effect::Displace { .. }) => {
+                self.knight_prompt(effect, &mut prompt, active)
             }
             effect => self.card_prompt(effect, &mut prompt, active),
         }
