@@ -7,6 +7,7 @@ pub mod duel;
 pub mod economy;
 pub mod game;
 pub mod knights;
+pub mod preferences;
 pub mod progress;
 pub mod progress_actions;
 pub mod progress_choices;
@@ -122,6 +123,7 @@ pub enum Response {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientView {
+    pub preferences: preferences::Preferences,
     pub identity: Identity,
     pub room: Option<RoomView>,
     pub connection: Connection,

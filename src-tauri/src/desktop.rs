@@ -60,12 +60,14 @@ impl Desktop {
             });
         let recent = storage::read(&directory.join("recent.json"))?.unwrap_or_default();
         let saves = storage::games(&directory)?;
+        let preferences = storage::read(&directory.join("preferences.json"))?.unwrap_or_default();
         storage::write(&directory.join("identity.json"), &identity)?;
         Ok(Self {
             directory,
             daemon: ServiceDaemon::new()?,
             state: Mutex::new(Session {
                 view: ClientView {
+                    preferences,
                     identity,
                     room: None,
                     connection: Connection::Home,

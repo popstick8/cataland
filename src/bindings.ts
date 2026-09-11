@@ -95,6 +95,7 @@ export type CityView = {
 };
 
 export type ClientView = {
+	preferences: Preferences;
 	identity: Identity;
 	room: RoomView | null;
 	connection: Connection;
@@ -171,6 +172,8 @@ export type Knight = {
 	upgraded: number;
 };
 
+export type Language = "zh-CN" | "en";
+
 export type Merchant = { player: number; hex: number };
 
 export type Mode = "base" | "cities";
@@ -190,6 +193,16 @@ export type PlayerView = {
 	roads: number;
 	settlements: number;
 	cities: number;
+};
+
+export type Preferences = {
+	master: number;
+	music: number;
+	effects: number;
+	ambience: number;
+	scale: number;
+	animation: number;
+	language: Language;
 };
 
 export type PrivateView = {
