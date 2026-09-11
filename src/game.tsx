@@ -14,6 +14,7 @@ import { CityPanel } from "./cities";
 import { KnightPanel } from "./knights";
 import { ChatPanel } from "./lobby";
 import { colors } from "./palette";
+import { EventSymbol, IslandEvents, ProgressCards } from "./progress";
 import { CardPicker, Cost, ResourceCards } from "./resources";
 import type { BoardOption } from "./scene";
 import type { Session } from "./session";
@@ -106,6 +107,8 @@ export function GameTable({
 				"tokens",
 				"improve",
 				"playCard",
+				"playProgress",
+				"harborTrade",
 				"respondTrade",
 				"completeTrade",
 				"cancelTrade",
@@ -230,6 +233,9 @@ export function GameTable({
 								)}
 								<Die value={dice[0]} red={game.mode === "cities"} />
 								<Die value={dice[1]} />
+								{game.cities?.event && (
+									<EventSymbol event={game.cities.event} />
+								)}
 							</div>
 						)}
 						<div className="turn-actions">
@@ -284,6 +290,8 @@ export function GameTable({
 					)}
 				</section>
 				<aside className="game-sidebar">
+					<IslandEvents game={game} />
+					<ProgressCards game={game} act={act} busy={session.busy} />
 					{prompt && (
 						<section className="game-panel prompt-panel">
 							<h3>
@@ -316,7 +324,7 @@ export function GameTable({
 									disabled={session.busy}
 									onClick={() => act({ type: "skip" })}
 								>
-									完成放置
+									完成选择
 								</button>
 							)}
 							{!ownPrompt && <p className="muted">选择完成后继续当前回合。</p>}

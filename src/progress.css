@@ -1,0 +1,130 @@
+.island-events h3,
+.public-achievements {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.barbarian-track {
+	position: relative;
+	display: grid;
+	grid-template-columns: repeat(8, 1fr);
+	margin: 32px 0 14px;
+}
+.barbarian-track::before {
+	content: "";
+	position: absolute;
+	top: 11px;
+	left: 6.25%;
+	right: 6.25%;
+	height: 2px;
+	background: var(--line);
+}
+.barbarian-track > span {
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	margin: auto;
+	border-radius: 50%;
+	background: var(--wash);
+	color: var(--muted);
+	font-size: 9px;
+}
+.barbarian-track > .reached {
+	background: #c1cbb0;
+	color: var(--sea);
+}
+.barbarian-ship {
+	position: absolute;
+	top: -23px;
+	transform: translateX(-50%);
+	color: #8f6949;
+	transition: left 0.35s ease;
+}
+.battle-strength {
+	display: flex;
+	justify-content: space-between;
+	font-size: 12px;
+	margin-bottom: 12px;
+}
+.progress-decks {
+	display: flex;
+	gap: 14px;
+	padding-top: 12px;
+	border-top: 1px solid var(--line);
+}
+.progress-decks > span {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 10px;
+}
+.public-achievements {
+	margin: 12px 0 0;
+	font-size: 10px;
+	color: #907442;
+}
+.event-die {
+	display: inline-grid;
+	place-items: center;
+	width: 39px;
+	height: 39px;
+	border-radius: 8px;
+	background: #ede5cc;
+	color: #74583b;
+	box-shadow: inset 0 -3px 0 #00000010;
+}
+.event-die-trade {
+	color: #a58032;
+}
+.event-die-politics {
+	color: #52789d;
+}
+.event-die-science {
+	color: #52794f;
+}
+.progress-cards,
+.harbor-offers {
+	display: grid;
+	gap: 9px;
+}
+.progress-card {
+	width: 100%;
+	padding: 13px;
+	text-align: left;
+	justify-content: start;
+	border-left: 4px solid;
+	background: linear-gradient(125deg, #fffdf4, #f0eddf);
+}
+.progress-card:disabled {
+	opacity: 0.75;
+}
+.progress-card > svg {
+	flex-shrink: 0;
+}
+.progress-card > span {
+	flex: 1;
+}
+.progress-card strong {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+	font-size: 12px;
+	margin-bottom: 5px;
+}
+.progress-card small {
+	font-size: 10px;
+	line-height: 1.65;
+	color: var(--muted);
+}
+.harbor-offers {
+	margin-top: 15px;
+}
+.harbor-offers h4 {
+	margin: 0;
+	font-size: 12px;
+}
+.harbor-offers button {
+	font-size: 10px;
+}

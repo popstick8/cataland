@@ -435,6 +435,27 @@ export async function createScene(
 			figure.position.set(point.x, point.y);
 			pieces.addChild(figure);
 		});
+		if (view.cities?.merchant) {
+			const merchant = view.cities.merchant;
+			const hex = board.hexes[merchant.hex];
+			if (hex) {
+				const trader = new Graphics()
+					.ellipse(0, 4, 13, 6)
+					.fill({ color: 0x203c37, alpha: 0.22 })
+					.roundRect(-9, -20, 18, 24, 5)
+					.fill(playerColor(view, merchant.player))
+					.circle(0, -24, 7)
+					.fill(0xf1d7a6)
+					.ellipse(0, -29, 13, 3)
+					.fill(0xb08d46)
+					.roundRect(-7, -36, 14, 7, 3)
+					.fill(0xd4b46a)
+					.roundRect(5, -11, 11, 13, 3)
+					.fill(0xa9794f);
+				trader.position.set(hex.x * 80 - 32, hex.y * 66 + 8);
+				pieces.addChild(trader);
+			}
+		}
 		if (view.robber !== null) {
 			const hex = board.hexes[view.robber];
 			if (hex) {
