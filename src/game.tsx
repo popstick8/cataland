@@ -10,6 +10,7 @@ import {
 import { useCallback, useState } from "react";
 import type { Action, GameView, RoomView } from "./bindings";
 import { BoardCanvas } from "./board";
+import { CityPanel } from "./cities";
 import { ChatPanel } from "./lobby";
 import { colors } from "./palette";
 import { CardPicker, Cost, ResourceCards } from "./resources";
@@ -102,6 +103,7 @@ export function GameTable({
 			![
 				"bankTrade",
 				"tokens",
+				"improve",
 				"playCard",
 				"respondTrade",
 				"completeTrade",
@@ -326,6 +328,7 @@ export function GameTable({
 							<p>群岛上的这段故事已写下结局。</p>
 						</section>
 					)}
+					<CityPanel game={game} room={room} act={act} busy={session.busy} />
 					<Trading game={game} room={room} act={act} busy={session.busy} />
 					{game.humans === 2 && room.you !== null && (
 						<section className="game-panel">

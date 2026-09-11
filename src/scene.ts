@@ -368,6 +368,12 @@ export async function createScene(
 			const shape = new Graphics()
 				.ellipse(0, 5, city ? 24 : 17, 9)
 				.fill({ color: 0x263e35, alpha: 0.24 });
+			if (view.cities?.walls.includes(id)) {
+				shape
+					.poly([-24, 3, -8, -8, 26, 4, 10, 17])
+					.fill(0x8d9890)
+					.stroke({ color: 0xe9e1c7, width: 2 });
+			}
 			shape
 				.poly([-12, -12, 1, -5, 1, 8, -12, 1])
 				.fill(0xf7e8ba)
@@ -386,6 +392,12 @@ export async function createScene(
 					.stroke({ color: 0xfff1d4, width: 1.2 })
 					.rect(12, -15, 4, 5)
 					.fill(0x53675c);
+			if (view.cities?.metropolises.includes(id)) {
+				shape
+					.poly([3, -45, 7, -39, 12, -49, 17, -39, 22, -45, 20, -33, 5, -33])
+					.fill(0xdabd66)
+					.stroke({ color: 0xffefb9, width: 1.5 });
+			}
 			shape.position.set(point.x, point.y);
 			pieces.addChild(shape);
 		});
