@@ -59,7 +59,16 @@ export function useSession() {
 		(action: RoomAction) => run("room_action", { action }),
 		[run],
 	);
-	return { view, error, busy, run, act, clearError: () => setError(null) };
+	const report = useCallback((cause: unknown) => setError(String(cause)), []);
+	return {
+		view,
+		error,
+		busy,
+		run,
+		act,
+		report,
+		clearError: () => setError(null),
+	};
 }
 
 export type Session = ReturnType<typeof useSession>;

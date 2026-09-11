@@ -1,0 +1,71 @@
+.preferences {
+	width: min(560px, 90vw);
+	max-height: 90svh;
+	padding: 0;
+	border: 1px solid var(--line);
+	border-radius: 20px;
+	background: var(--paper);
+	color: var(--ink);
+	box-shadow: 0 28px 90px #173d4438;
+}
+.preferences::backdrop {
+	background: #153a4580;
+	backdrop-filter: blur(6px);
+}
+.preferences form {
+	padding: 28px;
+}
+.preferences header,
+.preferences h2,
+.preferences h3,
+.preferences footer {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+.preferences header {
+	justify-content: space-between;
+	margin-bottom: 20px;
+}
+.preferences h2 {
+	font-size: 23px;
+	margin: 0;
+}
+.preferences h3 {
+	font-size: 14px;
+}
+.preferences section {
+	padding-top: 18px;
+	border-top: 1px solid var(--line);
+}
+.preferences footer {
+	justify-content: end;
+	padding-top: 12px;
+}
+.range-setting > span {
+	display: flex;
+	justify-content: space-between;
+	color: var(--ink);
+}
+.range-setting input {
+	padding: 0;
+	accent-color: var(--sea);
+}
+.settings-error {
+	padding: 12px;
+	font-size: 12px;
+	color: #915a45;
+	background: #f8e9db;
+	border-radius: 8px;
+}
+.app-tools {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+}
+:root[data-animation="0"] *,
+:root[data-animation="0"] *::before,
+:root[data-animation="0"] *::after {
+	animation: none;
+	transition: none;
+}

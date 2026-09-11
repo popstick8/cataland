@@ -1,20 +1,61 @@
-import { Compass, X } from "lucide-react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Compass, Settings, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { GameTable } from "./game";
 import { Home, Lobby } from "./lobby";
+import { PreferencesPanel } from "./preferences";
 import { ConnectionNotice } from "./rooms";
 import { useSession } from "./session";
 import "./style.css";
 
 export function App() {
 	const session = useSession();
+	const [settings, setSettings] = useState(false);
+	const { report } = session;
+	useEffect(() => {
+		const key = (event: KeyboardEvent) => {
+			if (event.key !== "F11") return;
+			event.preventDefault();
+			const window = getCurrentWindow();
+			void window
+				.isFullscreen()
+				.then((full) => window.setFullscreen(!full))
+				.catch(report);
+		};
+		window.addEventListener("keydown", key);
+		return () => window.removeEventListener("keydown", key);
+	}, [report]);
+	useEffect(() => {
+		if (session.view)
+			document.documentElement.dataset.animation = String(
+				session.view.preferences.animation,
+			);
+	}, [session.view]);
 	return (
 		<div className="app">
+			{settings && session.view && (
+				<PreferencesPanel
+					initial={session.view.preferences}
+					close={() => setSettings(false)}
+				/>
+			)}
 			<header className="app-bar">
 				<div className="brand">
 					<Compass size={24} />
 					<span>Cataland</span>
 				</div>
-				<span className="app-caption">群岛之约</span>
+				<div className="app-tools">
+					<span className="app-caption">群岛之约</span>
+					<button
+						type="button"
+						className="icon-button"
+						aria-label="设置"
+						disabled={!session.view}
+						onClick={() => setSettings(true)}
+					>
+						<Settings size={20} />
+					</button>
+				</div>
 			</header>
 			{session.view && (
 				<ConnectionNotice view={session.view} session={session} />
