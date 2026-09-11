@@ -401,6 +401,40 @@ export async function createScene(
 			shape.position.set(point.x, point.y);
 			pieces.addChild(shape);
 		});
+		view.cities?.knights.forEach((knight, vertex) => {
+			if (!knight) return;
+			const point = coordinates(board, vertex);
+			const color = playerColor(view, knight.player);
+			const figure = new Container();
+			const base = new Graphics()
+				.ellipse(0, 5, 16, 7)
+				.fill({ color: 0x263e35, alpha: 0.25 });
+			base
+				.ellipse(0, 1, 14, 6)
+				.fill(color)
+				.stroke({ color: 0xf3e6c4, width: 2 });
+			const body = new Graphics()
+				.poly([-10, -3, -8, -21, 0, -27, 8, -21, 10, -3])
+				.fill(0xd5d9ce)
+				.poly([-8, -19, 0, -15, 8, -19, 6, -7, 0, -2, -6, -7])
+				.fill(color)
+				.roundRect(-7, -34, 14, 13, 5)
+				.fill(0xf1e9cd)
+				.moveTo(-7, -27)
+				.lineTo(7, -27)
+				.stroke({ color: 0x495859, width: 3 });
+			for (let i = 0; i < knight.level; i++)
+				body.circle((i - (knight.level - 1) / 2) * 5, -10, 1.7).fill(0xffefba);
+			if (knight.active)
+				body.poly([-5, -34, -9, -43, 2, -40, 4, -34]).fill(color);
+			else {
+				body.rotation = -0.7;
+				body.position.set(4, 4);
+			}
+			figure.addChild(base, body);
+			figure.position.set(point.x, point.y);
+			pieces.addChild(figure);
+		});
 		if (view.robber !== null) {
 			const hex = board.hexes[view.robber];
 			if (hex) {

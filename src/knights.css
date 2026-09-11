@@ -1,0 +1,48 @@
+.knights-panel h3,
+.knight-heading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.defense-scores {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+	margin: 14px 0;
+}
+.defense-scores > span {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 11px;
+}
+.defense-scores i {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+}
+.defense-scores strong {
+	margin-left: auto;
+}
+.knight-row {
+	padding: 12px 0;
+	border-top: 1px solid var(--line);
+}
+.knight-heading {
+	font-size: 11px;
+}
+.knight-heading > span {
+	margin-left: auto;
+	color: var(--muted);
+}
+.knight-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+}
+.knight-actions button {
+	min-height: 30px;
+	padding: 5px 8px;
+	font-size: 10px;
+}

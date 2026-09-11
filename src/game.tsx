@@ -11,6 +11,7 @@ import { useCallback, useState } from "react";
 import type { Action, GameView, RoomView } from "./bindings";
 import { BoardCanvas } from "./board";
 import { CityPanel } from "./cities";
+import { KnightPanel } from "./knights";
 import { ChatPanel } from "./lobby";
 import { colors } from "./palette";
 import { CardPicker, Cost, ResourceCards } from "./resources";
@@ -184,9 +185,9 @@ export function GameTable({
 								{game.awards.road === index && <Crown size={12} />}
 							</span>
 							{index < game.humans && (
-								<span title="已使用骑士">
+								<span title={game.cities ? "激活骑士防御力" : "已使用骑士"}>
 									<Swords size={13} />
-									{player.army}
+									{game.cities ? game.cities.defense[index] : player.army}
 									{game.awards.army === index && <Crown size={12} />}
 								</span>
 							)}
@@ -328,6 +329,7 @@ export function GameTable({
 							<p>群岛上的这段故事已写下结局。</p>
 						</section>
 					)}
+					<KnightPanel game={game} room={room} act={act} busy={session.busy} />
 					<CityPanel game={game} room={room} act={act} busy={session.busy} />
 					<Trading game={game} room={room} act={act} busy={session.busy} />
 					{game.humans === 2 && room.you !== null && (
