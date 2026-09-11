@@ -1,4 +1,5 @@
 import { Compass, X } from "lucide-react";
+import { GameTable } from "./game";
 import { Home, Lobby } from "./lobby";
 import { ConnectionNotice } from "./rooms";
 import { useSession } from "./session";
@@ -33,11 +34,20 @@ export function App() {
 			)}
 			{session.view ? (
 				session.view.room ? (
-					<Lobby
-						key={session.view.room.id}
-						room={session.view.room}
-						session={session}
-					/>
+					session.view.room.game ? (
+						<GameTable
+							key={session.view.room.id}
+							room={session.view.room}
+							game={session.view.room.game}
+							session={session}
+						/>
+					) : (
+						<Lobby
+							key={session.view.room.id}
+							room={session.view.room}
+							session={session}
+						/>
+					)
 				) : (
 					<Home view={session.view} session={session} />
 				)

@@ -1,0 +1,16 @@
+diff --git a/lib/Shaders.d.ts b/lib/Shaders.d.ts
+index 2aed566102cbf0dd92b0a9b9e08ca844722a0b6c..6e8a3ccf872994ab8383d73f05607c7c63d40f15 100644
+--- a/lib/Shaders.d.ts
++++ b/lib/Shaders.d.ts
+@@ -1,4 +1,10 @@
+-/// <reference types="@webgpu/types" />
++interface HTMLCanvasElement {
++    getContext(contextId: "webgpu"): GPUCanvasContext | null;
++}
++
++interface OffscreenCanvas {
++    getContext(contextId: "webgpu"): GPUCanvasContext | null;
++}
+ 
+ declare module '*.wgsl'
+ {

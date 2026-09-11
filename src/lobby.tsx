@@ -10,18 +10,9 @@ import {
 import { useState } from "react";
 import island from "../src-tauri/icons/icon.png";
 import type { ClientView, RoomSettings, RoomView } from "./bindings";
+import { colorNames, colors } from "./palette";
 import { RoomBrowser } from "./rooms";
 import type { Session } from "./session";
-
-export const colors = [
-	"#ca7657",
-	"#3f9295",
-	"#d4aa4b",
-	"#8487bd",
-	"#b86582",
-	"#779665",
-];
-export const colorNames = ["陶红", "海蓝", "麦金", "鸢紫", "莓粉", "松绿"];
 
 function ColorPicker({
 	value,
@@ -248,6 +239,21 @@ export function Lobby({ room, session }: { room: RoomView; session: Session }) {
 					<Users size={16} /> {room.seats.length} / {room.settings.capacity}
 				</span>
 			</header>
+			{room.host && (
+				<button
+					type="button"
+					className="primary"
+					style={{ marginBottom: 22 }}
+					disabled={
+						session.busy ||
+						room.seats.length < 2 ||
+						room.seats.some((seat) => !seat.connected || !seat.ready)
+					}
+					onClick={() => void session.act({ type: "start" })}
+				>
+					开始游戏
+				</button>
+			)}
 			<div className="lobby-grid">
 				<section className="paper seats">
 					<h2>围坐的人们</h2>
