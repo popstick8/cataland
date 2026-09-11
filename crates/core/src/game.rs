@@ -82,7 +82,9 @@ pub struct Turn {
     pub token_action: bool,
     pub sacrifice: bool,
     pub fleet: Option<Resource>,
+    #[serde(default)]
     pub cranes: u8,
+    #[serde(default)]
     pub harbors: Vec<u8>,
 }
 

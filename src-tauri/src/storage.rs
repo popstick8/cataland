@@ -4,8 +4,8 @@ use std::{
     time::UNIX_EPOCH,
 };
 
-use cataland_core::{SavedGame, room::Room};
-use serde::{Serialize, de::DeserializeOwned};
+use cataland_core::{RoomSettings, SavedGame, room::Member};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use uuid::Uuid;
 
 pub fn read<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, String> {
@@ -30,6 +30,13 @@ pub fn game_path(directory: &Path, id: &str) -> Result<PathBuf, String> {
     Ok(directory.join("games").join(format!("{id}.json")))
 }
 
+#[derive(Deserialize)]
+struct Summary {
+    id: String,
+    settings: RoomSettings,
+    members: Vec<Member>,
+}
+
 pub fn games(directory: &Path) -> Result<Vec<SavedGame>, String> {
     let mut games = Vec::new();
     for entry in
@@ -43,7 +50,7 @@ pub fn games(directory: &Path) -> Result<Vec<SavedGame>, String> {
         {
             continue;
         }
-        let Some(room) = read::<Room>(&entry.path())? else {
+        let Some(room) = read::<Summary>(&entry.path())? else {
             continue;
         };
         let modified = entry
