@@ -1,0 +1,16 @@
+:root {
+	--font: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+	--ink: #293e36;
+	--muted: #7b8778;
+	--sea: #254b48;
+	--paper: #fffef8;
+	--wash: #edf0e6;
+	--line: #dde2d5;
+	font-family: var(--font);
+	font-size: 14px;
+	line-height: 1.5;
+	color: var(--ink);
+	background: #f0f2e9;
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+}
