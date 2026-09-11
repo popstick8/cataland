@@ -10,11 +10,11 @@ mdns-sd = "0.21.3"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 socket2 = "0.6.5"
-tauri = "2.11.5"
+tauri = { version = "2.11.5", features = [] }
 tokio = { version = "1.53.1", features = ["net", "sync", "macros", "rt-multi-thread", "time"] }
 tokio-tungstenite = "0.30.0"
 tokio-util = { version = "0.7.19", features = ["rt"] }
 uuid = { version = "1.26.1", features = ["v4"] }
 
 [build-dependencies]
-tauri-build = "2.6.3"
+tauri-build = { version = "2.6.3", features = [] }
