@@ -5,7 +5,9 @@ use ts_rs::TS;
 
 use crate::{
     Mode, Seat,
+    awards::Awards,
     board::{Board, Resource, Terrain},
+    development::{Card, HeldCard},
 };
 
 pub type Cards = [u16; 8];
@@ -31,6 +33,8 @@ pub struct Player {
     pub roads: u8,
     pub settlements: u8,
     pub cities: u8,
+    pub cards: Vec<HeldCard>,
+    pub army: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -47,6 +51,7 @@ pub struct Turn {
     pub player: usize,
     pub number: u32,
     pub dice: Vec<[u8; 2]>,
+    pub development: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -60,18 +65,21 @@ pub enum Target {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Action {
+    BuildSettlement { vertex: usize },
+    BuildRoad { edge: usize },
     BuildCity { vertex: usize },
     BankTrade { give: Resource, take: Resource },
     OfferTrade { give: Cards, want: Cards },
     RespondTrade { accept: bool },
     CompleteTrade { partner: usize },
     CancelTrade,
-    BuildSettlement { vertex: usize },
-    BuildRoad { edge: usize },
+    BuyDevelopment,
+    PlayCard { card: Card },
     Roll,
     EndTurn,
     Pick { value: usize },
     SelectCards { cards: Cards },
+    Skip,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -79,14 +87,20 @@ pub enum Effect {
     Discard { player: usize, count: u16 },
     Robber { player: usize },
     Steal { player: usize, targets: Vec<usize> },
+    FreeRoad { player: usize, remaining: u8 },
+    BankCards { player: usize, count: u16 },
+    Monopoly { player: usize },
 }
 
 impl Effect {
     pub fn player(&self) -> usize {
         match self {
-            Self::Discard { player, .. } | Self::Robber { player } | Self::Steal { player, .. } => {
-                *player
-            }
+            Self::Discard { player, .. }
+            | Self::Robber { player }
+            | Self::Steal { player, .. }
+            | Self::FreeRoad { player, .. }
+            | Self::BankCards { player, .. }
+            | Self::Monopoly { player } => *player,
         }
     }
 }
@@ -121,6 +135,8 @@ pub struct Game {
     pub pending: VecDeque<Effect>,
     pub events: Vec<Event>,
     pub trade: Option<crate::economy::Trade>,
+    pub awards: Awards,
+    pub dev_deck: Vec<Card>,
     pub winner: Option<usize>,
 }
 
@@ -148,7 +164,20 @@ impl Game {
         if mode == Mode::Cities {
             bank[5..].fill(if big { 18 } else { 12 });
         }
-        let game = Self {
+        let mut dev_deck = Vec::new();
+        if mode == Mode::Base {
+            for (card, count) in [
+                (Card::Knight, if big { 20 } else { 14 }),
+                (Card::VictoryPoint, 5),
+                (Card::RoadBuilding, if big { 3 } else { 2 }),
+                (Card::Plenty, if big { 3 } else { 2 }),
+                (Card::Monopoly, if big { 3 } else { 2 }),
+            ] {
+                dev_deck.extend(std::iter::repeat_n(card, count));
+            }
+            fastrand::shuffle(&mut dev_deck);
+        }
+        Ok(Self {
             mode,
             buildings: vec![None; board.vertices.len()],
             roads: vec![None; board.edges.len()],
@@ -162,6 +191,8 @@ impl Game {
                     roads: 15,
                     settlements: 5,
                     cities: 4,
+                    cards: Vec::new(),
+                    army: 0,
                 })
                 .collect(),
             bank,
@@ -174,14 +205,20 @@ impl Game {
                 player: starter,
                 number: 0,
                 dice: Vec::new(),
+                development: false,
             },
             starter,
             pending: VecDeque::new(),
             events: Vec::new(),
             trade: None,
+            awards: Awards {
+                road: None,
+                army: None,
+                lengths: vec![0; seats.len()],
+            },
+            dev_deck,
             winner: None,
-        };
-        Ok(game)
+        })
     }
 
     pub fn apply(&mut self, player: usize, action: Action) -> Result<(), String> {
@@ -196,6 +233,7 @@ impl Game {
         }
         if !self.pending.is_empty() {
             self.resolve(player, action)?;
+            self.update_awards();
             self.check_victory();
             return Ok(());
         }
@@ -288,10 +326,15 @@ impl Game {
                 }
             }
             (Stage::Production, Action::Roll) => self.roll(),
+            (Stage::Production | Stage::Action, Action::PlayCard { card }) => {
+                self.play_card(player, card)?
+            }
+            (Stage::Action, Action::BuyDevelopment) => self.buy_development(player)?,
             (Stage::Action, Action::EndTurn) => self.end_turn(),
             (Stage::Action, action) => self.economy(player, action)?,
             _ => return Err("这个动作不属于当前阶段".into()),
         }
+        self.update_awards();
         self.check_victory();
         Ok(())
     }
@@ -311,24 +354,29 @@ impl Game {
         })
     }
 
+    pub fn blocked(&self, player: usize, vertex: usize) -> bool {
+        self.buildings[vertex]
+            .as_ref()
+            .is_some_and(|building| building.player != player)
+    }
+
     pub fn can_road(&self, player: usize, edge: usize) -> bool {
         self.board.edges.get(edge).is_some_and(|line| {
             self.roads[edge].is_none()
-                && line
-                    .vertices
-                    .iter()
-                    .any(|&vertex| match &self.buildings[vertex] {
-                        Some(building) => building.player == player,
-                        None => self.board.vertices[vertex]
-                            .edges
-                            .iter()
-                            .any(|&other| self.roads[other] == Some(player)),
-                    })
+                && line.vertices.iter().any(|&vertex| {
+                    !self.blocked(player, vertex)
+                        && (self.buildings[vertex].is_some()
+                            || self.board.vertices[vertex]
+                                .edges
+                                .iter()
+                                .any(|&other| self.roads[other] == Some(player)))
+                })
         })
     }
 
     pub fn points(&self, player: usize) -> u16 {
-        self.buildings
+        let buildings: u16 = self
+            .buildings
             .iter()
             .flatten()
             .filter(|building| building.player == player)
@@ -336,7 +384,10 @@ impl Game {
                 BuildingKind::Settlement => 1,
                 BuildingKind::City => 2,
             })
-            .sum()
+            .sum();
+        buildings
+            + u16::from(self.awards.road == Some(player)) * 2
+            + u16::from(self.awards.army == Some(player)) * 2
     }
 
     pub fn record(
@@ -477,6 +528,7 @@ impl Game {
 
     fn end_turn(&mut self) {
         self.trade = None;
+        self.turn.development = false;
         self.turn.player = (self.turn.player + 1) % self.players.len();
         self.turn.number += 1;
         self.turn.dice.clear();
@@ -551,7 +603,7 @@ impl Game {
                 self.pending.remove(index);
                 self.steal(player, value);
             }
-            _ => return Err("请完成当前选择".into()),
+            (effect, action) => self.resolve_card(player, index, effect, action)?,
         }
         Ok(())
     }

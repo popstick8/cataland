@@ -14,6 +14,8 @@ pub struct PlayerView {
     pub color: usize,
     pub points: u16,
     pub hand_count: u16,
+    pub card_count: usize,
+    pub army: u8,
     pub roads: u8,
     pub settlements: u8,
     pub cities: u8,
@@ -24,6 +26,7 @@ pub struct PrivateView {
     pub hand: Cards,
     pub points: u16,
     pub rates: [u8; 8],
+    pub cards: Vec<crate::development::CardView>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -48,16 +51,17 @@ pub struct CardChoice {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct Prompt {
     pub player: usize,
     pub title: String,
     pub choices: Vec<Pick>,
     pub cards: Option<CardChoice>,
+    pub can_skip: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct GameView {
-    pub trade: Option<crate::economy::Trade>,
     pub mode: Mode,
     pub board: Board,
     pub players: Vec<PlayerView>,
@@ -70,6 +74,9 @@ pub struct GameView {
     pub private: Option<PrivateView>,
     pub actions: Vec<AvailableAction>,
     pub prompt: Option<Prompt>,
+    pub trade: Option<crate::economy::Trade>,
+    pub awards: crate::awards::Awards,
+    pub development: usize,
     pub events: Vec<GameEvent>,
     pub winner: Option<usize>,
 }
@@ -78,7 +85,6 @@ impl Game {
     pub fn view(&self, viewer: Option<usize>) -> GameView {
         let viewer = viewer.filter(|&player| player < self.players.len());
         GameView {
-            trade: self.trade.clone(),
             mode: self.mode,
             board: self.board.clone(),
             players: self
@@ -88,8 +94,14 @@ impl Game {
                 .map(|(player, data)| PlayerView {
                     name: data.name.clone(),
                     color: data.color,
-                    points: self.points(player),
+                    points: if self.winner.is_some() {
+                        self.score(player)
+                    } else {
+                        self.points(player)
+                    },
                     hand_count: data.hand.iter().sum(),
+                    card_count: data.cards.len(),
+                    army: data.army,
                     roads: data.roads,
                     settlements: data.settlements,
                     cities: data.cities,
@@ -102,12 +114,26 @@ impl Game {
             stage: self.stage.clone(),
             turn: self.turn.clone(),
             private: viewer.map(|player| PrivateView {
-                rates: crate::board::Resource::ALL.map(|resource| self.bank_rate(player, resource)),
                 hand: self.players[player].hand,
-                points: self.points(player),
+                points: self.score(player),
+                rates: crate::board::Resource::ALL.map(|resource| self.bank_rate(player, resource)),
+                cards: self.players[player]
+                    .cards
+                    .iter()
+                    .map(|held| crate::development::CardView {
+                        card: held.card,
+                        name: held.card.name().into(),
+                        description: held.card.description().into(),
+                        playable: held.acquired < self.turn.number
+                            && self.can_play(player, held.card),
+                    })
+                    .collect(),
             }),
             actions: viewer.map_or_else(Vec::new, |player| self.actions(player)),
             prompt: self.prompt(viewer),
+            trade: self.trade.clone(),
+            awards: self.awards.clone(),
+            development: self.dev_deck.len(),
             events: self
                 .events
                 .iter()
@@ -268,6 +294,7 @@ impl Game {
             }
             Stage::Ended => {}
         }
+        actions.extend(self.card_actions(player));
         actions
     }
 
@@ -284,6 +311,7 @@ impl Game {
             title: String::new(),
             choices: Vec::new(),
             cards: None,
+            can_skip: false,
         };
         match effect {
             Effect::Discard { count, .. } => {
@@ -325,6 +353,7 @@ impl Game {
                         .collect();
                 }
             }
+            effect => self.card_prompt(effect, &mut prompt, active),
         }
         Some(prompt)
     }

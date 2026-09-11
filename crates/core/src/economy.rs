@@ -210,7 +210,7 @@ impl Game {
     pub fn check_victory(&mut self) {
         let player = self.turn.player;
         let target = if self.mode == Mode::Base { 10 } else { 13 };
-        if self.winner.is_none() && self.points(player) >= target {
+        if self.winner.is_none() && self.score(player) >= target {
             self.winner = Some(player);
             self.stage = Stage::Ended;
             self.pending.clear();
@@ -221,7 +221,7 @@ impl Game {
                 format!(
                     "{}以 {} 分获胜",
                     self.players[player].name,
-                    self.points(player)
+                    self.score(player)
                 ),
                 None,
             );
