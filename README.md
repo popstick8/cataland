@@ -1,24 +1,51 @@
 # Cataland
 
-Windows、macOS 与 Linux 上的局域网策略桌游。两到六名玩家在群岛上建造、生产与交易，支持基础规则和城市与骑士。
+Windows、macOS 与 Linux 上的 2–6 人局域网策略桌游。支持基础规则、双人中立势力与贸易筹码、5–6 人双玩家回合，以及城市与骑士的城市发展、骑士、野蛮人和三系进步卡。
+
+## 开始游戏
+
+一名玩家创建房间，选择玩法、人数和颜色。其他玩家从首页的局域网列表加入，也可以输入房主界面显示的地址。大家准备后，由房主开始对局；开局后加入的玩家进入观战席。
+
+棋盘支持拖动、滚轮缩放与归位。选择建造或卡牌动作后，棋盘会显示可以操作的位置。手牌、银行与港口兑换、玩家交易、城市发展和骑士操作在棋盘周围的面板中完成。
+
+房主的电脑自动保存对局，首页的「继续游戏」可以重新开放原房间。原玩家重连后返回自己的席位和手牌。设置提供中文与英文、界面缩放、动画强度、分项音量、显示器和全屏选择；F11 切换全屏，窗口大小和位置自动保存。
 
 ## 开发
+
+需要 Node.js、pnpm、Rust 和 [Tauri 对应平台的构建依赖](https://v2.tauri.app/start/prerequisites/)。Biome 使用系统安装的命令行工具。项目配置自动选择 pnpm 版本，依赖由锁文件管理。
 
 ```sh
 pnpm install
 pnpm dev
 ```
 
-Rust 与系统 WebView 的构建依赖见 [Tauri 开发环境](https://v2.tauri.app/start/prerequisites/)。项目中的 pnpm 配置自动选择所需包管理器。
+| 命令 | 用途 |
+| --- | --- |
+| `pnpm bindings` | 从 Rust 类型生成前端定义 |
+| `pnpm check` | 格式化、代码检查、TypeScript 与 Rust 静态检查 |
+| `cargo test --workspace` | 运行规则与联机流程验证 |
+| `pnpm build` | 构建前端 |
+| `pnpm desktop` | 构建桌面应用与安装包 |
 
-```sh
-pnpm check
-pnpm build
-pnpm desktop
-```
-
-`pnpm bindings` 从 Rust 类型生成前端的数据定义。`uv run scripts/art.py` 生成游戏插画资源。
+安装包位于 `target/release/bundle`。Windows 生成 EXE 与 MSI，macOS 生成应用包与 DMG，Linux 生成 DEB、RPM 与 AppImage。GitHub Actions 在三个平台分别构建，并提供对应的安装包下载。
 
 ## 结构
 
-`crates/core` 描述规则与数据；`src-tauri` 管理桌面窗口、局域网房间与存档；`src` 提供界面和棋盘渲染。
+`crates/core` 包含棋盘、规则、动作结算和玩家状态视图。`src-tauri` 管理窗口、局域网连接、房间发现与存档。`src` 提供 React 界面与 PixiJS 棋盘。
+
+房主直接调用规则引擎，客机通过 WebSocket 发送同样的动作。每个连接收到自己的状态视图；语言在各客户端分别显示。`src/bindings.ts` 由 `pnpm bindings` 生成，界面英文词条位于 `src/en.json`。
+
+界面和棋盘使用浏览器原生动画播放状态变化。棋盘在状态或分辨率改变时绘制，导航与棋子运动由合成动画完成。
+
+## 美术与声音
+
+地形与卡牌使用图集，生成脚本和成品一同保存。脚本通过 `uv run` 执行，依赖在脚本中声明。
+
+| 脚本 | 资源 |
+| --- | --- |
+| `scripts/art.py` | 应用图标原图 |
+| `scripts/terrain.py` | 六种地形的插画图集 |
+| `scripts/illustrations.py` | 资源、商品、发展卡和进步卡插画 |
+| `scripts/audio.py` | 背景音乐与海岸环境声 |
+
+游戏音效由 `src/sound.ts` 合成。通用界面图标使用 Lucide。

@@ -19,6 +19,9 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{desktop, discovery, storage};
 
+#[cfg(test)]
+mod tests;
+
 struct Hosted {
     room: Room,
     connections: HashMap<String, usize>,
