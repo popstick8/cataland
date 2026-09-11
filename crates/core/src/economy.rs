@@ -20,6 +20,13 @@ pub struct Trade {
 }
 
 impl Game {
+    pub fn can_offer(&self, player: usize) -> bool {
+        self.players.len() > 2
+            && player == self.turn.player
+            && self.stage == Stage::Action
+            && self.pending.is_empty()
+    }
+
     pub fn bank_rate(&self, player: usize, resource: Resource) -> u8 {
         let mut rate = 4;
         for harbor in &self.board.harbors {
@@ -136,6 +143,9 @@ impl Game {
                 );
             }
             Action::OfferTrade { give, want } => {
+                if !self.can_offer(player) {
+                    return Err("当前行动阶段使用银行与港口交易".into());
+                }
                 if !give.iter().any(|&count| count > 0) || !want.iter().any(|&count| count > 0) {
                     return Err("交易需要填写给出和索取的牌".into());
                 }

@@ -142,6 +142,7 @@ export type PlayerView = {
 };
 
 export type PrivateView = {
+	canOffer: boolean;
 	hand: [number, number, number, number, number, number, number, number];
 	points: number;
 	rates: [number, number, number, number, number, number, number, number];

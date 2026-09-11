@@ -15,6 +15,7 @@ import { colors } from "./palette";
 import { CardPicker, Cost, ResourceCards } from "./resources";
 import type { BoardOption } from "./scene";
 import type { Session } from "./session";
+import { Trading } from "./trade";
 import "./game.css";
 
 const dots: Record<number, readonly number[]> = {
@@ -301,6 +302,7 @@ export function GameTable({
 							<p>群岛上的这段故事已写下结局。</p>
 						</section>
 					)}
+					<Trading game={game} room={room} act={act} busy={session.busy} />
 					{cardTypes.length > 0 && (
 						<section className="game-panel">
 							<h3>发展卡</h3>

@@ -22,7 +22,9 @@ pub struct PlayerView {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct PrivateView {
+    pub can_offer: bool,
     pub hand: Cards,
     pub points: u16,
     pub rates: [u8; 8],
@@ -114,6 +116,7 @@ impl Game {
             stage: self.stage.clone(),
             turn: self.turn.clone(),
             private: viewer.map(|player| PrivateView {
+                can_offer: self.can_offer(player),
                 hand: self.players[player].hand,
                 points: self.score(player),
                 rates: crate::board::Resource::ALL.map(|resource| self.bank_rate(player, resource)),

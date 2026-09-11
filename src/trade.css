@@ -1,0 +1,98 @@
+.trading summary {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 600;
+}
+.bank-stock {
+	display: flex;
+	gap: 12px;
+	flex-wrap: wrap;
+	padding: 16px 0;
+}
+.bank-stock > span {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 11px;
+}
+.exchange-fields {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+.exchange-fields label {
+	flex: 1;
+	min-width: 0;
+	font-size: 10px;
+}
+.exchange-fields select {
+	padding: 7px;
+	font-size: 11px;
+}
+.trade-offer {
+	border-top: 1px solid var(--line);
+	margin-top: 15px;
+	padding-top: 15px;
+}
+.trade-offer p {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	margin: 8px 0;
+	font-size: 11px;
+}
+.trade-responses {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 7px;
+	margin-top: 14px;
+}
+.trade-responses > span {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 10px;
+	padding: 4px 7px;
+	background: var(--wash);
+	border-radius: 6px;
+}
+.trade-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 12px;
+}
+.trade-buttons button {
+	font-size: 11px;
+	padding: 7px 9px;
+}
+.offer-button {
+	font-size: 12px;
+	margin-top: 14px;
+}
+.offer-editor {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+	margin-top: 15px;
+}
+.offer-editor .form-row {
+	grid-column: 1 / -1;
+}
+.offer-editor .card-amount {
+	gap: 4px;
+}
+.offer-editor .card-amount > span {
+	font-size: 10px;
+	gap: 3px;
+}
+.offer-editor .card-amount input {
+	width: 42px;
+	padding: 4px;
+}
+.offer-editor .card-amount svg {
+	width: 15px;
+}
