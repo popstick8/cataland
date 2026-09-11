@@ -59,8 +59,15 @@ pub struct CardChoice {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct Participant {
+    pub player: usize,
+    pub complete: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Prompt {
+    pub responses: Vec<Participant>,
     pub player: usize,
     pub title: Text,
     pub choices: Vec<Pick>,
@@ -339,7 +346,21 @@ impl Game {
         )?;
         let player = effect.player();
         let active = viewer == Some(player);
+        let mut responses: Vec<_> = self
+            .pending
+            .iter()
+            .take_while(|effect| matches!(effect, Effect::Discard { .. }))
+            .filter_map(|effect| match effect {
+                Effect::Discard { player, count } => Some(Participant {
+                    player: *player,
+                    complete: *count == 0,
+                }),
+                _ => None,
+            })
+            .collect();
+        responses.sort_by_key(|response| response.player);
         let mut prompt = Prompt {
+            responses,
             player,
             title: Text::default(),
             choices: Vec::new(),

@@ -505,3 +505,26 @@
 	font-weight: 600;
 	box-shadow: 0 4px 18px #173d4430;
 }
+
+.response-progress {
+	margin-bottom: 16px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--line);
+}
+.response-progress h4 {
+	margin: 0 0 10px;
+	font-size: 12px;
+}
+.response-progress > div {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin-top: 6px;
+	font-size: 12px;
+}
+.response-progress span {
+	flex: 1;
+}
+.response-progress small {
+	color: var(--muted);
+}

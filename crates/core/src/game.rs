@@ -805,6 +805,9 @@ impl Game {
     pub fn advance(&mut self) {
         while let Some(effect) = self.pending.front().cloned() {
             match effect {
+                Effect::Discard { count: 0, .. } => {
+                    self.pending.pop_front();
+                }
                 Effect::Progress { player, choice }
                     if !self.progress_available(player, &choice) =>
                 {
@@ -856,7 +859,7 @@ impl Game {
             self.pending
                 .iter()
                 .take_while(|effect| matches!(effect, Effect::Discard { .. }))
-                .position(|effect| effect.player() == player)
+                .position(|effect| matches!(effect, Effect::Discard { player: owner, count } if *owner == player && *count > 0))
         } else {
             self.pending
                 .front()
@@ -903,6 +906,13 @@ impl Game {
                 }
                 self.pay(player, &cards)?;
                 self.pending.remove(index);
+                let end = self
+                    .pending
+                    .iter()
+                    .take_while(|effect| matches!(effect, Effect::Discard { .. }))
+                    .count();
+                self.pending
+                    .insert(end, Effect::Discard { player, count: 0 });
                 self.record(
                     Some(player),
                     "discard",

@@ -55,6 +55,7 @@ fn sites(
 impl Game {
     pub fn progress_available(&self, player: usize, choice: &ProgressChoice) -> bool {
         let mut prompt = Prompt {
+            responses: Vec::new(),
             player,
             title: Text::default(),
             choices: Vec::new(),

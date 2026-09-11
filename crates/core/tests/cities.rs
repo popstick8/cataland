@@ -11,7 +11,17 @@ fn settle(game: &mut Game) {
         let Some(effect) = game.pending.front() else {
             return;
         };
-        let player = effect.player();
+        let player = if matches!(effect, Effect::Discard { .. }) {
+            game.pending
+                .iter()
+                .take_while(|effect| matches!(effect, Effect::Discard { .. }))
+                .filter(|effect| matches!(effect, Effect::Discard { count, .. } if *count > 0))
+                .last()
+                .unwrap()
+                .player()
+        } else {
+            effect.player()
+        };
         let prompt = game.prompt(Some(player)).unwrap();
         let public = game.prompt(None).unwrap();
         assert!(public.cards.is_none() && public.choices.is_empty());
@@ -33,6 +43,17 @@ fn settle(game: &mut Game) {
             Action::Skip
         };
         game.apply(player, action).unwrap();
+        if !prompt.responses.is_empty()
+            && let Some(next) = game.prompt(None).filter(|next| !next.responses.is_empty())
+        {
+            assert_eq!(next.responses.len(), prompt.responses.len());
+            assert!(
+                next.responses
+                    .iter()
+                    .any(|response| response.player == player && response.complete)
+            );
+            assert!(game.pending_index(player).is_none());
+        }
     }
     panic!("Card resolution did not finish: {:?}", game.pending);
 }

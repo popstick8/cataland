@@ -527,5 +527,8 @@
 	"沙漠": "Desert",
 	"游戏棋盘": "Game board",
 	"已结束 · 查看对局": "Finished · View game",
-	"对局记录": "Game archive"
+	"对局记录": "Game archive",
+	"响应进度": "Responses",
+	"已完成": "Done",
+	"选择中": "Choosing"
 }

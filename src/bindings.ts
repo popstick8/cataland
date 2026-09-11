@@ -186,6 +186,8 @@ export type Merchant = { player: number; hex: number };
 
 export type Mode = "base" | "cities";
 
+export type Participant = { player: number; complete: boolean };
+
 export type Pick = { value: number; label: Text; target: Target | null };
 
 export type PlayerView = {
@@ -260,6 +262,7 @@ export type ProgressView = {
 };
 
 export type Prompt = {
+	responses: Array<Participant>;
 	player: number;
 	title: Text;
 	choices: Array<Pick>;

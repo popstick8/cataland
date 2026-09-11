@@ -1,5 +1,7 @@
 import {
 	ArrowLeft,
+	Check,
+	Clock3,
 	Crown,
 	Layers,
 	MessageCircle,
@@ -328,6 +330,24 @@ export function GameTable({
 									? t(prompt.title)
 									: t("{0}：{1}", actor?.name ?? "", t(prompt.title))}
 							</h3>
+							{prompt.responses.length > 1 && (
+								<div className="response-progress" role="status">
+									<h4>{t("响应进度")}</h4>
+									{prompt.responses.map(({ player, complete }) => (
+										<div key={player}>
+											<i
+												className="player-dot"
+												style={{
+													background: colors[game.players[player]?.color ?? 0],
+												}}
+											/>
+											<span>{game.players[player]?.name}</span>
+											{complete ? <Check size={14} /> : <Clock3 size={14} />}
+											<small>{t(complete ? "已完成" : "选择中")}</small>
+										</div>
+									))}
+								</div>
+							)}
 							{ownPrompt && prompt.cards && (
 								<CardPicker
 									key={JSON.stringify([
