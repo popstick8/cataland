@@ -7,15 +7,16 @@ use std::{
 
 use cataland_core::{Identity, Request, Response, RoomAction, RoomView, room::Room};
 use futures_util::{SinkExt, StreamExt};
+use mdns_sd::ServiceDaemon;
 use socket2::{Domain, Protocol, Socket, Type};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::{mpsc, watch},
 };
-use tokio_tungstenite::{WebSocketStream, accept_async, connect_async, tungstenite::Message};
+use tokio_tungstenite::{WebSocketStream, accept_async, client_async, tungstenite::Message};
 use tokio_util::sync::CancellationToken;
 
-use crate::desktop;
+use crate::{desktop, discovery};
 
 struct Hosted {
     room: Room,
@@ -27,10 +28,12 @@ pub struct Host {
     pub changes: watch::Sender<()>,
     pub cancel: CancellationToken,
     pub port: u16,
+    daemon: ServiceDaemon,
+    fullname: String,
 }
 
 impl Host {
-    pub fn start(room: Room) -> Result<Arc<Self>, String> {
+    pub fn start(room: Room, daemon: ServiceDaemon) -> Result<Arc<Self>, String> {
         let socket = Socket::new(Domain::IPV6, Type::STREAM, Some(Protocol::TCP))
             .map_err(|e| e.to_string())?;
         socket.set_only_v6(false).map_err(|e| e.to_string())?;
@@ -41,12 +44,15 @@ impl Host {
         socket.listen(128).map_err(|e| e.to_string())?;
         let listener = TcpListener::from_std(socket.into()).map_err(|e| e.to_string())?;
         let port = listener.local_addr().map_err(|e| e.to_string())?.port();
+        let fullname = discovery::advertise(&daemon, &room, port)?;
         let connections = HashMap::from([(room.members[0].identity.token.clone(), 1)]);
         let host = Arc::new(Self {
             data: Mutex::new(Hosted { room, connections }),
             changes: watch::channel(()).0,
             cancel: CancellationToken::new(),
             port,
+            daemon,
+            fullname,
         });
         let server = host.clone();
         tauri::async_runtime::spawn(async move {
@@ -64,7 +70,7 @@ impl Host {
                         }
                         Err(error) => {
                             eprintln!("Room listener: {error}");
-                            server.cancel.cancel();
+                            server.stop();
                             break;
                         }
                     }
@@ -72,6 +78,26 @@ impl Host {
             }
         });
         Ok(host)
+    }
+
+    pub fn stop(&self) {
+        if !self.cancel.is_cancelled() {
+            self.cancel.cancel();
+            if let Err(error) = self.daemon.unregister(&self.fullname) {
+                eprintln!("Room advertisement removal: {error}");
+            }
+        }
+    }
+
+    fn announce(&self) {
+        let result = self
+            .data
+            .lock()
+            .map_err(|e| e.to_string())
+            .and_then(|data| discovery::advertise(&self.daemon, &data.room, self.port));
+        if let Err(error) = result {
+            eprintln!("Room advertisement: {error}");
+        }
     }
 
     pub fn view(&self, token: &str) -> Result<RoomView, String> {
@@ -84,6 +110,7 @@ impl Host {
     }
 
     pub fn apply(&self, token: &str, action: RoomAction) -> Result<(), String> {
+        let announce = matches!(action, RoomAction::Configure { .. });
         let time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|e| e.to_string())?
@@ -95,6 +122,9 @@ impl Host {
             .room
             .apply(token, action, time)?;
         self.changes.send_replace(());
+        if announce {
+            self.announce();
+        }
         Ok(())
     }
 
@@ -103,6 +133,8 @@ impl Host {
         let token = identity.token.clone();
         data.room.join(identity)?;
         *data.connections.entry(token).or_default() += 1;
+        drop(data);
+        self.announce();
         self.changes.send_replace(());
         Ok(())
     }
@@ -190,6 +222,12 @@ impl Host {
     }
 }
 
+impl Drop for Host {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
 async fn send(socket: &mut WebSocketStream<TcpStream>, response: &Response) -> Result<(), String> {
     let text = serde_json::to_string(response).map_err(|e| e.to_string())?;
     socket
@@ -200,16 +238,15 @@ async fn send(socket: &mut WebSocketStream<TcpStream>, response: &Response) -> R
 
 pub async fn guest(
     app: tauri::AppHandle,
-    address: String,
+    addresses: Vec<String>,
     identity: Identity,
     mut outgoing: mpsc::UnboundedReceiver<Request>,
     cancel: CancellationToken,
 ) {
     let result = async {
-        let url = if address.starts_with("ws://") { address } else { format!("ws://{address}") };
         let (mut socket, _) = tokio::select! {
             () = cancel.cancelled() => return Ok(()),
-            result = connect_async(url) => result.map_err(|e| format!("连接房间失败：{e}"))?,
+            result = connect(&addresses) => result?,
         };
         socket.send(Message::text(serde_json::to_string(&Request::Join { identity }).map_err(|e| e.to_string())?)).await.map_err(|e| e.to_string())?;
         loop {
@@ -237,4 +274,29 @@ pub async fn guest(
     if let Err(error) = desktop::disconnected(&app, &cancel, result.err()) {
         eprintln!("Connection state: {error}");
     }
+}
+
+async fn connect(
+    addresses: &[String],
+) -> Result<
+    (
+        WebSocketStream<TcpStream>,
+        tokio_tungstenite::tungstenite::handshake::client::Response,
+    ),
+    String,
+> {
+    let mut targets = Vec::new();
+    for address in addresses {
+        targets.extend(
+            tokio::net::lookup_host(address)
+                .await
+                .map_err(|e| format!("主机地址无法解析：{e}"))?,
+        );
+    }
+    let stream = TcpStream::connect(targets.as_slice())
+        .await
+        .map_err(|e| format!("连接房间失败：{e}"))?;
+    client_async("ws://cataland/", stream)
+        .await
+        .map_err(|e| format!("房间连接失败：{e}"))
 }

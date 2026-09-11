@@ -7,6 +7,7 @@ use std::{
 use cataland_core::{
     ClientView, Connection, Identity, Request, RoomAction, RoomSettings, RoomView, room::Room,
 };
+use mdns_sd::ServiceDaemon;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -16,6 +17,7 @@ use crate::network::{self, Host};
 
 pub struct Desktop {
     pub directory: PathBuf,
+    pub daemon: ServiceDaemon,
     pub state: Mutex<Session>,
 }
 
@@ -36,7 +38,10 @@ enum Outgoing {
 
 impl Drop for Link {
     fn drop(&mut self) {
-        self.cancel.cancel();
+        match &self.outgoing {
+            Outgoing::Local(host) => host.stop(),
+            Outgoing::Remote(_) => self.cancel.cancel(),
+        }
     }
 }
 
@@ -54,12 +59,14 @@ impl Desktop {
         };
         let desktop = Self {
             directory,
+            daemon: ServiceDaemon::new()?,
             state: Mutex::new(Session {
                 view: ClientView {
                     identity,
                     room: None,
                     connection: Connection::Home,
-                    address: String::new(),
+                    addresses: Vec::new(),
+                    nearby: Vec::new(),
                 },
                 link: None,
             }),
@@ -155,13 +162,14 @@ pub async fn host(
     };
     let room = Room::new(Uuid::new_v4().to_string(), settings, identity.clone())?;
     desktop.save_identity(&identity)?;
-    let host = Host::start(room)?;
+    let room_id = room.id.clone();
+    let host = Host::start(room, desktop.daemon.clone())?;
     state.link = Some(Link {
         outgoing: Outgoing::Local(host.clone()),
         cancel: host.cancel.clone(),
     });
     state.view.identity = identity.clone();
-    state.view.address = format!("[::1]:{}", host.port);
+    state.view.addresses = vec![format!("cataland-{room_id}.local.:{}", host.port)];
     state.view.connection = Connection::Connected;
     let mut changes = host.changes.subscribe();
     state.view.room = Some(host.view(&identity.token)?);
@@ -184,7 +192,7 @@ pub async fn host(
 
 #[tauri::command]
 pub fn join(
-    address: String,
+    addresses: Vec<String>,
     name: String,
     color: usize,
     app: AppHandle,
@@ -200,7 +208,20 @@ pub fn join(
         return Err("请输入 1–24 字的名称并选择玩家颜色".into());
     }
     desktop.save_identity(&identity)?;
-    let address = address.trim().to_owned();
+    let addresses: Vec<_> = addresses
+        .into_iter()
+        .map(|address| {
+            address
+                .trim()
+                .trim_start_matches("ws://")
+                .trim_end_matches('/')
+                .to_owned()
+        })
+        .filter(|address| !address.is_empty())
+        .collect();
+    if addresses.is_empty() {
+        return Err("请输入主机地址与端口".into());
+    }
     let (sender, receiver) = mpsc::unbounded_channel();
     let cancel = CancellationToken::new();
     state.link = Some(Link {
@@ -209,10 +230,10 @@ pub fn join(
     });
     state.view.identity = identity.clone();
     state.view.connection = Connection::Connecting;
-    state.view.address = address.clone();
+    state.view.addresses = addresses.clone();
     app.emit("session", &state.view)
         .map_err(|e| e.to_string())?;
-    tauri::async_runtime::spawn(network::guest(app, address, identity, receiver, cancel));
+    tauri::async_runtime::spawn(network::guest(app, addresses, identity, receiver, cancel));
     Ok(())
 }
 
@@ -236,6 +257,6 @@ pub fn leave(app: AppHandle, desktop: State<'_, Desktop>) -> Result<(), String> 
     state.link = None;
     state.view.room = None;
     state.view.connection = Connection::Home;
-    state.view.address.clear();
+    state.view.addresses.clear();
     app.emit("session", &state.view).map_err(|e| e.to_string())
 }

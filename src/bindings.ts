@@ -6,7 +6,8 @@ export type ClientView = {
 	identity: Identity;
 	room: RoomView | null;
 	connection: Connection;
-	address: string;
+	addresses: Array<string>;
+	nearby: Array<RoomInfo>;
 };
 
 export type Connection = "home" | "connecting" | "connected" | "disconnected";
@@ -32,7 +33,7 @@ export type RoomAction =
 export type RoomInfo = {
 	id: string;
 	name: string;
-	address: string;
+	addresses: Array<string>;
 	players: number;
 	capacity: number;
 	mode: Mode;

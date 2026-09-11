@@ -1,4 +1,5 @@
 mod desktop;
+mod discovery;
 mod network;
 
 use tauri::Manager;
@@ -7,6 +8,7 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             app.manage(desktop::Desktop::new(app.path().app_data_dir()?)?);
+            discovery::start(app.handle().clone())?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

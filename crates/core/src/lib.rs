@@ -82,7 +82,7 @@ pub struct Identity {
 pub struct RoomInfo {
     pub id: String,
     pub name: String,
-    pub address: String,
+    pub addresses: Vec<String>,
     pub players: usize,
     pub capacity: usize,
     pub mode: Mode,
@@ -109,7 +109,8 @@ pub struct ClientView {
     pub identity: Identity,
     pub room: Option<RoomView>,
     pub connection: Connection,
-    pub address: String,
+    pub addresses: Vec<String>,
+    pub nearby: Vec<RoomInfo>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
