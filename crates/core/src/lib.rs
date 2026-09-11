@@ -1,6 +1,7 @@
 pub mod awards;
 pub mod board;
 pub mod development;
+pub mod duel;
 pub mod economy;
 pub mod game;
 pub mod room;

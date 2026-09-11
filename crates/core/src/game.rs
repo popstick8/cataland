@@ -37,6 +37,21 @@ pub struct Player {
     pub army: u8,
 }
 
+impl Player {
+    pub fn new(name: String, color: usize) -> Self {
+        Self {
+            name,
+            color,
+            hand: [0; 8],
+            roads: 15,
+            settlements: 5,
+            cities: 4,
+            cards: Vec::new(),
+            army: 0,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Stage {
@@ -85,18 +100,40 @@ pub enum Action {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Effect {
-    Discard { player: usize, count: u16 },
-    Robber { player: usize },
-    Steal { player: usize, targets: Vec<usize> },
-    FreeRoad { player: usize, remaining: u8 },
-    BankCards { player: usize, count: u16 },
-    Monopoly { player: usize },
+    Neutral {
+        player: usize,
+        kind: crate::duel::NeutralBuild,
+        owner: Option<usize>,
+    },
+    Discard {
+        player: usize,
+        count: u16,
+    },
+    Robber {
+        player: usize,
+    },
+    Steal {
+        player: usize,
+        targets: Vec<usize>,
+    },
+    FreeRoad {
+        player: usize,
+        remaining: u8,
+    },
+    BankCards {
+        player: usize,
+        count: u16,
+    },
+    Monopoly {
+        player: usize,
+    },
 }
 
 impl Effect {
     pub fn player(&self) -> usize {
         match self {
             Self::Discard { player, .. }
+            | Self::Neutral { player, .. }
             | Self::Robber { player }
             | Self::Steal { player, .. }
             | Self::FreeRoad { player, .. }
@@ -179,7 +216,7 @@ impl Game {
             }
             fastrand::shuffle(&mut dev_deck);
         }
-        Ok(Self {
+        let mut game = Self {
             mode,
             humans: seats.len(),
             buildings: vec![None; board.vertices.len()],
@@ -187,16 +224,7 @@ impl Game {
             board,
             players: seats
                 .iter()
-                .map(|seat| Player {
-                    name: seat.name.clone(),
-                    color: seat.color,
-                    hand: [0; 8],
-                    roads: 15,
-                    settlements: 5,
-                    cities: 4,
-                    cards: Vec::new(),
-                    army: 0,
-                })
+                .map(|seat| Player::new(seat.name.clone(), seat.color))
                 .collect(),
             bank,
             robber,
@@ -222,7 +250,9 @@ impl Game {
             },
             dev_deck,
             winner: None,
-        })
+        };
+        game.setup_neutrals();
+        Ok(game)
     }
 
     pub fn apply(&mut self, player: usize, action: Action) -> Result<(), String> {
@@ -490,6 +520,9 @@ impl Game {
             let Some(building) = building else {
                 continue;
             };
+            if building.player >= self.humans {
+                continue;
+            }
             for &id in &self.board.vertices[vertex].hexes {
                 let hex = &self.board.hexes[id];
                 if hex.number != total || self.robber == Some(id) {
@@ -622,6 +655,9 @@ impl Game {
                 }
                 self.pending.remove(index);
                 self.steal(player, value);
+            }
+            (Effect::Neutral { kind, owner, .. }, action) => {
+                self.resolve_neutral(player, kind, owner, action)?
             }
             (effect, action) => self.resolve_card(player, index, effect, action)?,
         }

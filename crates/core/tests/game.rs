@@ -7,7 +7,7 @@ use cataland_core::{
 
 #[test]
 fn complete_games_conserve_resources() {
-    for (seed, count) in [(0, 3), (1, 4), (2, 5), (3, 6)] {
+    for (seed, count) in [(0, 3), (1, 4), (2, 5), (3, 6), (4, 2)] {
         fastrand::seed(seed);
         let seats: Vec<_> = (0..count)
             .map(|color| Seat {

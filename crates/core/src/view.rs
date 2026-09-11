@@ -86,7 +86,7 @@ pub struct GameView {
 
 impl Game {
     pub fn view(&self, viewer: Option<usize>) -> GameView {
-        let viewer = viewer.filter(|&player| player < self.players.len());
+        let viewer = viewer.filter(|&player| player < self.humans);
         GameView {
             mode: self.mode,
             humans: self.humans,
@@ -362,6 +362,9 @@ impl Game {
                         })
                         .collect();
                 }
+            }
+            Effect::Neutral { kind, owner, .. } => {
+                self.neutral_prompt(*kind, *owner, &mut prompt, active)
             }
             effect => self.card_prompt(effect, &mut prompt, active),
         }

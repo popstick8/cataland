@@ -152,30 +152,38 @@ export function GameTable({
 							/>
 							<strong>{player.name}</strong>
 							{index === room.you && <span className="own-mark">自己</span>}
-							<span className="player-score">
-								{index === room.you ? game.private?.points : player.points}
-								<small>分</small>
-							</span>
+							{index < game.humans && (
+								<span className="player-score">
+									{index === room.you ? game.private?.points : player.points}
+									<small>分</small>
+								</span>
+							)}
 						</div>
 						<div className="player-details">
-							<span title="资源与商品">
-								<Layers size={13} />
-								{player.handCount}
-							</span>
-							<span title="发展卡">
-								<ScrollText size={13} />
-								{player.cardCount}
-							</span>
+							{index < game.humans && (
+								<>
+									<span title="资源与商品">
+										<Layers size={13} />
+										{player.handCount}
+									</span>
+									<span title="发展卡">
+										<ScrollText size={13} />
+										{player.cardCount}
+									</span>
+								</>
+							)}
 							<span title="最长道路">
 								<Route size={13} />
 								{game.awards.lengths[index]}
 								{game.awards.road === index && <Crown size={12} />}
 							</span>
-							<span title="已使用骑士">
-								<Swords size={13} />
-								{player.army}
-								{game.awards.army === index && <Crown size={12} />}
-							</span>
+							{index < game.humans && (
+								<span title="已使用骑士">
+									<Swords size={13} />
+									{player.army}
+									{game.awards.army === index && <Crown size={12} />}
+								</span>
+							)}
 							{room.seats[index]?.connected === false && (
 								<span className="offline">断线</span>
 							)}

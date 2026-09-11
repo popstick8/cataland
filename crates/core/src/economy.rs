@@ -119,8 +119,14 @@ impl Game {
 
     pub fn economy(&mut self, player: usize, action: Action) -> Result<(), String> {
         match action {
-            Action::BuildRoad { edge } => self.build_road(player, edge, &ROAD)?,
-            Action::BuildSettlement { vertex } => self.build_settlement(player, vertex)?,
+            Action::BuildRoad { edge } => {
+                self.build_road(player, edge, &ROAD)?;
+                self.queue_neutral(player, crate::duel::NeutralBuild::Road);
+            }
+            Action::BuildSettlement { vertex } => {
+                self.build_settlement(player, vertex)?;
+                self.queue_neutral(player, crate::duel::NeutralBuild::Settlement);
+            }
             Action::BuildCity { vertex } => self.build_city(player, vertex, &CITY)?,
             Action::BankTrade { give, take } => {
                 if give == take || self.bank[take.index()] == 0 {

@@ -197,6 +197,7 @@ impl Game {
                         remaining: remaining - 1,
                     });
                 }
+                self.queue_neutral(player, crate::duel::NeutralBuild::Road);
             }
             (Effect::FreeRoad { .. }, Action::Skip) => {
                 self.pending.remove(index);
