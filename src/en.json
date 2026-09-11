@@ -525,5 +525,7 @@
 	"农田": "Fields",
 	"山脉": "Mountains",
 	"沙漠": "Desert",
-	"游戏棋盘": "Game board"
+	"游戏棋盘": "Game board",
+	"已结束 · 查看对局": "Finished · View game",
+	"对局记录": "Game archive"
 }

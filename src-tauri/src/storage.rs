@@ -55,6 +55,12 @@ struct Summary {
     id: String,
     settings: RoomSettings,
     members: Vec<Member>,
+    game: Option<Outcome>,
+}
+
+#[derive(Deserialize)]
+struct Outcome {
+    winner: Option<usize>,
 }
 
 pub fn games(directory: &Path) -> Result<Vec<SavedGame>, Text> {
@@ -78,6 +84,7 @@ pub fn games(directory: &Path) -> Result<Vec<SavedGame>, Text> {
             .and_then(|metadata| metadata.modified())
             .map_err(|e| Text::from(e.to_string()))?;
         games.push(SavedGame {
+            finished: room.game.is_some_and(|game| game.winner.is_some()),
             id: room.id,
             name: room.settings.name,
             mode: room.settings.mode,

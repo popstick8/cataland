@@ -202,6 +202,24 @@ pub async fn host(
 pub async fn resume(id: String, app: AppHandle, desktop: State<'_, Desktop>) -> Result<(), Text> {
     let path = storage::game_path(&desktop.directory, &id)?;
     let mut room = storage::read::<Room>(&path)?.ok_or("找不到这份存档")?;
+    if room.game.as_ref().is_some_and(|game| game.winner.is_some()) {
+        let mut view = room.view("", 0);
+        if let Some(game) = &mut view.game {
+            game.prompt = None;
+            game.trade = None;
+        }
+        let mut state = desktop
+            .state
+            .lock()
+            .map_err(|e| Text::from(e.to_string()))?;
+        state.link = None;
+        state.view.room = Some(view);
+        state.view.connection = Connection::Review;
+        state.view.addresses.clear();
+        return app
+            .emit("session", &state.view)
+            .map_err(|e| Text::from(e.to_string()));
+    }
     for member in &mut room.members {
         member.connected = false;
     }

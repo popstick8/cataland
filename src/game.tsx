@@ -64,6 +64,7 @@ export function GameTable({
 	session: Session;
 }) {
 	const t = useText();
+	const review = session.view?.connection === "review";
 	const element = useRef<HTMLElement>(null);
 	useGameMotion(element, game, session.view?.preferences.animation ?? 1);
 	const [tool, setTool] = useState("");
@@ -211,7 +212,7 @@ export function GameTable({
 									{game.awards.army === index && <Crown size={12} />}
 								</span>
 							)}
-							{room.seats[index]?.connected === false && (
+							{!review && room.seats[index]?.connected === false && (
 								<span className="offline">{t("断线")}</span>
 							)}
 						</div>
@@ -313,7 +314,9 @@ export function GameTable({
 						</div>
 					) : (
 						<div className="spectator-caption">
-							{t("观战席 · {0}", room.spectators.join(t("、")))}
+							{review
+								? t("对局记录")
+								: t("观战席 · {0}", room.spectators.join(t("、")))}
 						</div>
 					)}
 				</section>

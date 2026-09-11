@@ -130,11 +130,13 @@ pub enum Connection {
     Connecting,
     Connected,
     Disconnected,
+    Review,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SavedGame {
+    pub finished: bool,
     pub id: String,
     pub name: String,
     pub mode: Mode,

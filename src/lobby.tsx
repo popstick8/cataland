@@ -193,32 +193,34 @@ export function ChatPanel({
 					</p>
 				))}
 			</div>
-			<form
-				className="chat-compose"
-				onSubmit={(event) => {
-					event.preventDefault();
-					if (text.trim()) {
-						void session.act({ type: "chat", text });
-						setText("");
-					}
-				}}
-			>
-				<input
-					value={text}
-					onChange={(event) => setText(event.target.value)}
-					placeholder={t("聊聊下一步的打算…")}
-					aria-label={t("聊天内容")}
-					maxLength={1000}
-				/>
-				<button
-					type="submit"
-					className="icon-button"
-					aria-label={t("发送")}
-					disabled={!text.trim() || session.busy}
+			{session.view?.connection === "connected" && (
+				<form
+					className="chat-compose"
+					onSubmit={(event) => {
+						event.preventDefault();
+						if (text.trim()) {
+							void session.act({ type: "chat", text });
+							setText("");
+						}
+					}}
 				>
-					<Send size={18} />
-				</button>
-			</form>
+					<input
+						value={text}
+						onChange={(event) => setText(event.target.value)}
+						placeholder={t("聊聊下一步的打算…")}
+						aria-label={t("聊天内容")}
+						maxLength={1000}
+					/>
+					<button
+						type="submit"
+						className="icon-button"
+						aria-label={t("发送")}
+						disabled={!text.trim() || session.busy}
+					>
+						<Send size={18} />
+					</button>
+				</form>
+			)}
 		</section>
 	);
 }

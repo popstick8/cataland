@@ -1,5 +1,6 @@
 import {
 	ArrowRight,
+	BookOpen,
 	Clock3,
 	DoorOpen,
 	Radio,
@@ -124,14 +125,15 @@ export function RoomBrowser({
 					>
 						<span className="room-entry-text">
 							<strong>{save.name}</strong>
-							<small>{save.players.join("、")}</small>
+							{save.finished && <small>{t("已结束 · 查看对局")}</small>}
+							<small>{save.players.join(t("、"))}</small>
 							<small>
 								{new Date(save.updated).toLocaleString(
 									view.preferences.language,
 								)}
 							</small>
 						</span>
-						<RotateCcw size={18} />
+						{save.finished ? <BookOpen size={18} /> : <RotateCcw size={18} />}
 					</button>
 				))}
 			</div>
@@ -147,8 +149,7 @@ export function ConnectionNotice({
 	session: Session;
 }) {
 	const t = useText();
-	if (view.connection === "home" || view.connection === "connected")
-		return null;
+	if (["home", "connected", "review"].includes(view.connection)) return null;
 	const connecting = view.connection === "connecting";
 	return (
 		<div className="connection-overlay">

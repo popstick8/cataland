@@ -105,7 +105,12 @@ export type ClientView = {
 	saves: Array<SavedGame>;
 };
 
-export type Connection = "home" | "connecting" | "connected" | "disconnected";
+export type Connection =
+	| "home"
+	| "connecting"
+	| "connected"
+	| "disconnected"
+	| "review";
 
 export type Cursor = { room: string; events: number; chat: number };
 
@@ -318,6 +323,7 @@ export type RoomView = {
 };
 
 export type SavedGame = {
+	finished: boolean;
 	id: string;
 	name: string;
 	mode: Mode;
