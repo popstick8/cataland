@@ -93,7 +93,7 @@
 }
 .table-board {
 	display: grid;
-	grid-template-rows: auto auto minmax(0, 1fr) auto;
+	grid-template-rows: auto minmax(0, 1fr) auto;
 	min-height: 0;
 	border: 1px solid #c7d7ca;
 	border-radius: 18px;
@@ -163,11 +163,14 @@
 	background: #fff3cc;
 }
 .board-tools {
+	position: absolute;
+	inset: 0 0 auto;
+	z-index: 1;
+	pointer-events: none;
 	display: flex;
 	align-items: center;
 	gap: 7px;
 	padding: 10px 15px;
-	min-height: 54px;
 	flex-wrap: wrap;
 }
 .board-tools > span {
@@ -176,6 +179,7 @@
 	color: #e1eee1;
 }
 .board-tools button {
+	pointer-events: auto;
 	font-size: 11px;
 	min-height: 30px;
 	padding: 7px 11px;

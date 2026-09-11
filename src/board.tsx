@@ -1,5 +1,5 @@
 import { Focus, Minus, Plus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { Action, GameView } from "./bindings";
 import { useText } from "./locale";
 import type { BoardOption, Scene } from "./scene";
@@ -9,11 +9,13 @@ export function BoardCanvas({
 	options,
 	act,
 	strength,
+	children,
 }: {
 	game: GameView;
 	options: BoardOption[];
 	act: (action: Action) => void;
 	strength: number;
+	children: ReactNode;
 }) {
 	const t = useText();
 	const element = useRef<HTMLDivElement>(null);
@@ -72,6 +74,7 @@ export function BoardCanvas({
 	return (
 		<div className="board-shell">
 			<div className="board-canvas" ref={element} />
+			{children}
 			{error && (
 				<div className="board-error" role="alert">
 					{t("棋盘无法绘制：{0}", error)}

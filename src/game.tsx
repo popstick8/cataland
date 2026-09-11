@@ -270,28 +270,29 @@ export function GameTable({
 							))}
 						</div>
 					</div>
-					<div className="board-tools">
-						{tools.map((choice) => (
-							<button
-								type="button"
-								key={choice.action.type}
-								aria-pressed={selected === choice.action.type}
-								onClick={() => setTool(choice.action.type)}
-							>
-								{t(choice.label)}
-								<Cost cards={choice.cost} />
-							</button>
-						))}
-						{!prompt && tools.length > 0 && (
-							<span>{t("点击棋盘上的高亮位置")}</span>
-						)}
-					</div>
 					<BoardCanvas
 						game={game}
 						options={options}
 						act={act}
 						strength={session.view?.preferences.animation ?? 1}
-					/>
+					>
+						<div className="board-tools">
+							{tools.map((choice) => (
+								<button
+									type="button"
+									key={choice.action.type}
+									aria-pressed={selected === choice.action.type}
+									onClick={() => setTool(choice.action.type)}
+								>
+									{t(choice.label)}
+									<Cost cards={choice.cost} />
+								</button>
+							))}
+							{!prompt && tools.length > 0 && (
+								<span>{t("点击棋盘上的高亮位置")}</span>
+							)}
+						</div>
+					</BoardCanvas>
 					{game.private ? (
 						<div className="hand">
 							<ResourceCards
