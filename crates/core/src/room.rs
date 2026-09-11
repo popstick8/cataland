@@ -1,3 +1,4 @@
+use crate::Text;
 use serde::{Deserialize, Serialize};
 
 use crate::{Chat, Identity, RoomAction, RoomSettings, RoomView, Seat, game::Game};
@@ -20,7 +21,7 @@ pub struct Room {
 }
 
 impl Room {
-    pub fn new(id: String, settings: RoomSettings, identity: Identity) -> Result<Self, String> {
+    pub fn new(id: String, settings: RoomSettings, identity: Identity) -> Result<Self, Text> {
         validate_settings(&settings, 1)?;
         validate_name(&identity.name)?;
         if identity.color >= 6 {
@@ -40,7 +41,7 @@ impl Room {
         })
     }
 
-    pub fn join(&mut self, mut identity: Identity) -> Result<(), String> {
+    pub fn join(&mut self, mut identity: Identity) -> Result<(), Text> {
         validate_name(&identity.name)?;
         if let Some(member) = self
             .members
@@ -78,7 +79,7 @@ impl Room {
         }
     }
 
-    pub fn apply(&mut self, token: &str, action: RoomAction, time: f64) -> Result<(), String> {
+    pub fn apply(&mut self, token: &str, action: RoomAction, time: f64) -> Result<(), Text> {
         let index = self
             .members
             .iter()
@@ -215,7 +216,7 @@ impl Room {
     }
 }
 
-fn validate_name(name: &str) -> Result<(), String> {
+fn validate_name(name: &str) -> Result<(), Text> {
     let length = name.trim().chars().count();
     if !(1..=24).contains(&length) {
         return Err("玩家名称需要在 1–24 字之间".into());
@@ -223,7 +224,7 @@ fn validate_name(name: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_settings(settings: &RoomSettings, occupied: usize) -> Result<(), String> {
+fn validate_settings(settings: &RoomSettings, occupied: usize) -> Result<(), Text> {
     if !(1..=48).contains(&settings.name.trim().chars().count()) {
         return Err("房间名称需要在 1–48 字之间".into());
     }

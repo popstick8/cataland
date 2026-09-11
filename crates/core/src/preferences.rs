@@ -1,3 +1,4 @@
+use crate::Text;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -36,7 +37,7 @@ impl Default for Preferences {
 }
 
 impl Preferences {
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self) -> Result<(), Text> {
         if ![
             self.master,
             self.music,

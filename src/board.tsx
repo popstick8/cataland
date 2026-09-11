@@ -16,12 +16,12 @@ export function BoardCanvas({
 	const t = useText();
 	const element = useRef<HTMLDivElement>(null);
 	const scene = useRef<Scene | null>(null);
-	const current = useRef({ game, options, act });
+	const current = useRef({ game, options, act, t });
 	const [error, setError] = useState<string | null>(null);
 	useEffect(() => {
-		current.current = { game, options, act };
-		scene.current?.update(game, options, act);
-	}, [game, options, act]);
+		current.current = { game, options, act, t };
+		scene.current?.update(game, options, act, t);
+	}, [game, options, act, t]);
 	useEffect(() => {
 		const root = element.current;
 		if (!root) return;
@@ -32,7 +32,13 @@ export function BoardCanvas({
 			.then(({ createScene }) =>
 				disposed
 					? null
-					: createScene(root, initial.game, initial.options, initial.act),
+					: createScene(
+							root,
+							initial.game,
+							initial.options,
+							initial.act,
+							initial.t,
+						),
 			)
 			.then((created) => {
 				if (!created) return;
@@ -43,7 +49,7 @@ export function BoardCanvas({
 				instance = created;
 				scene.current = created;
 				const latest = current.current;
-				created.update(latest.game, latest.options, latest.act);
+				created.update(latest.game, latest.options, latest.act, latest.t);
 			})
 			.catch((cause) => {
 				if (!disposed) setError(String(cause));

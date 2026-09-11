@@ -3,7 +3,7 @@ use std::{
     net::{SocketAddr, SocketAddrV6},
 };
 
-use cataland_core::{Connection, Mode, RoomInfo, room::Room};
+use cataland_core::{Connection, Mode, RoomInfo, Text, room::Room};
 use mdns_sd::{ResolvedService, ScopedIp, ServiceDaemon, ServiceEvent, ServiceInfo};
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -11,7 +11,7 @@ use crate::desktop::{self, Desktop};
 
 const SERVICE: &str = "_cataland._tcp.local.";
 
-pub fn advertise(daemon: &ServiceDaemon, room: &Room, port: u16) -> Result<String, String> {
+pub fn advertise(daemon: &ServiceDaemon, room: &Room, port: u16) -> Result<String, Text> {
     let properties = HashMap::from([
         ("id".to_owned(), room.id.clone()),
         ("name".to_owned(), room.settings.name.clone()),
@@ -43,12 +43,12 @@ pub fn advertise(daemon: &ServiceDaemon, room: &Room, port: u16) -> Result<Strin
         port,
         properties,
     )
-    .map_err(|e| e.to_string())?
+    .map_err(|e| Text::from(e.to_string()))?
     .enable_addr_auto();
     let fullname = service.get_fullname().to_owned();
     daemon
         .register(service)
-        .map_err(|e| format!("房间广播失败：{e}"))?;
+        .map_err(|e| cataland_core::text!("房间广播失败：{0}", e.to_string()))?;
     Ok(fullname)
 }
 
@@ -88,12 +88,12 @@ fn room_info(service: &ResolvedService) -> Option<RoomInfo> {
     })
 }
 
-pub fn start(app: AppHandle) -> Result<(), String> {
+pub fn start(app: AppHandle) -> Result<(), Text> {
     let events = app
         .state::<Desktop>()
         .daemon
         .browse(SERVICE)
-        .map_err(|e| format!("房间发现失败：{e}"))?;
+        .map_err(|e| cataland_core::text!("房间发现失败：{0}", e.to_string()))?;
     tauri::async_runtime::spawn(async move {
         let mut services = HashMap::<String, RoomInfo>::new();
         while let Ok(event) = events.recv_async().await {
@@ -124,9 +124,12 @@ fn update(
     app: &AppHandle,
     services: &HashMap<String, RoomInfo>,
     resolved: Option<RoomInfo>,
-) -> Result<(), String> {
+) -> Result<(), Text> {
     let desktop = app.state::<Desktop>();
-    let mut state = desktop.state.lock().map_err(|e| e.to_string())?;
+    let mut state = desktop
+        .state
+        .lock()
+        .map_err(|e| Text::from(e.to_string()))?;
     state.view.nearby = services.values().cloned().collect();
     state
         .view
@@ -147,7 +150,7 @@ fn update(
         state.view.addresses = info.addresses;
     }
     app.emit("session", &state.view)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| Text::from(e.to_string()))?;
     let identity = state.view.identity.clone();
     drop(state);
     if let Some(info) = reconnect {

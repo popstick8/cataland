@@ -12,7 +12,9 @@ pub mod progress;
 pub mod progress_actions;
 pub mod progress_choices;
 pub mod room;
+pub mod text;
 pub mod view;
+pub use text::Text;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -117,7 +119,7 @@ pub enum Request {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Response {
     State { room: Box<RoomView> },
-    Error { message: String },
+    Error { message: Text },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]

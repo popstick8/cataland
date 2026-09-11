@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::{
-    Mode,
+    Mode, Text,
     board::{Resource, Terrain},
     game::{Action, Building, BuildingKind, Effect, Game, Player, Stage, Target},
     view::{AvailableAction, CardChoice, Pick, Prompt},
@@ -100,7 +100,7 @@ impl Game {
         kind: NeutralBuild,
         owner: Option<usize>,
         action: Action,
-    ) -> Result<(), String> {
+    ) -> Result<(), Text> {
         let Action::Pick { value } = action else {
             return Err("请选择中立势力与建造位置".into());
         };
@@ -123,7 +123,7 @@ impl Game {
                     self.record(
                         Some(owner),
                         "build",
-                        format!("{}建造了一座村庄", self.players[owner].name),
+                        crate::text!("{0}建造了一座村庄", self.player_name(owner)),
                         Some(Target::Vertex(value)),
                     );
                 }
@@ -159,8 +159,8 @@ impl Game {
             NeutralBuild::Promotion => "晋升骑士",
         };
         prompt.title = owner.map_or_else(
-            || format!("选择中立势力，{name}"),
-            |owner| format!("为{}{name}", self.players[owner].name),
+            || crate::text!("选择中立势力，{0}", name),
+            |owner| crate::text!("为{0}{1}", self.player_name(owner), name),
         );
         if !active {
             return;
@@ -184,7 +184,7 @@ impl Game {
                 .filter(|&owner| !self.neutral_sites(owner, kind).is_empty())
                 .map(|value| Pick {
                     value,
-                    label: self.players[value].name.clone(),
+                    label: self.player_name(value),
                     target: None,
                 })
                 .collect()
@@ -212,7 +212,7 @@ impl Game {
             self.record(
                 Some(player),
                 "tokens",
-                format!("{}获得 {count} 个贸易筹码", self.players[player].name),
+                crate::text!("{0}获得 {1} 个贸易筹码", self.player_name(player), count),
                 None,
             );
         }
@@ -284,13 +284,13 @@ impl Game {
         .map(|action| {
             let label = match action {
                 TokenAction::Trade { commodities: false } => {
-                    format!("强制交换资源 · {} 筹码", self.token_cost(player))
+                    crate::text!("强制交换资源 · {0} 筹码", self.token_cost(player))
                 }
                 TokenAction::Trade { commodities: true } => {
-                    format!("强制交换资源与商品 · {} 筹码", self.token_cost(player) * 2)
+                    crate::text!("强制交换资源与商品 · {0} 筹码", self.token_cost(player) * 2)
                 }
                 TokenAction::MoveRobber => {
-                    format!("强盗返回沙漠 · {} 筹码", self.token_cost(player))
+                    crate::text!("强盗返回沙漠 · {0} 筹码", self.token_cost(player))
                 }
                 TokenAction::Sacrifice => "交回一张已使用的骑士卡 · 获得 2 筹码".into(),
             };
@@ -304,7 +304,7 @@ impl Game {
         .collect()
     }
 
-    pub fn use_token(&mut self, player: usize, action: TokenAction) -> Result<(), String> {
+    pub fn use_token(&mut self, player: usize, action: TokenAction) -> Result<(), Text> {
         if !self.can_token(player, action) {
             return Err("当前无法执行这个贸易筹码行动".into());
         }
@@ -339,16 +339,21 @@ impl Game {
                 self.record(
                     Some(player),
                     "trade",
-                    format!(
-                        "{}发起了强制交易，取得 {} 张牌",
-                        self.players[player].name,
+                    crate::text!(
+                        "{0}发起了强制交易，取得 {1} 张牌",
+                        self.player_name(player),
                         drawn.len()
                     ),
                     None,
                 );
                 self.private_event(
                     vec![player, 1 - player],
-                    format!("强制交易取得：{}", drawn.join("、")),
+                    crate::text!(
+                        "强制交易取得：{0}",
+                        Text::List {
+                            items: drawn.into_iter().map(Text::from).collect()
+                        }
+                    ),
                 );
                 self.pending.push_front(Effect::ReturnCards {
                     player,
@@ -366,7 +371,7 @@ impl Game {
                 self.record(
                     Some(player),
                     "robber",
-                    format!("{}使用贸易筹码，将强盗送回沙漠", self.players[player].name),
+                    crate::text!("{0}使用贸易筹码，将强盗送回沙漠", self.player_name(player)),
                     Some(Target::Hex(desert)),
                 );
             }
@@ -380,7 +385,7 @@ impl Game {
         player: usize,
         commodities: bool,
         action: Action,
-    ) -> Result<(), String> {
+    ) -> Result<(), Text> {
         let Action::SelectCards { cards } = action else {
             return Err("请选择交给对方的两张牌".into());
         };
@@ -400,7 +405,7 @@ impl Game {
         self.record(
             Some(player),
             "trade",
-            format!("{}交回两张牌，完成强制交易", self.players[player].name),
+            crate::text!("{0}交回两张牌，完成强制交易", self.player_name(player)),
             None,
         );
         Ok(())

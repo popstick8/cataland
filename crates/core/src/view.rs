@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::{
-    Mode,
+    Mode, Text,
     board::Board,
     game::{Action, Building, Cards, Effect, Game, GameEvent, Stage, Target, Turn},
 };
@@ -40,7 +40,7 @@ pub struct PrivateView {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct AvailableAction {
     pub action: Action,
-    pub label: String,
+    pub label: Text,
     pub target: Option<Target>,
     pub cost: Cards,
 }
@@ -48,7 +48,7 @@ pub struct AvailableAction {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct Pick {
     pub value: usize,
-    pub label: String,
+    pub label: Text,
     pub target: Option<Target>,
 }
 
@@ -62,7 +62,7 @@ pub struct CardChoice {
 #[serde(rename_all = "camelCase")]
 pub struct Prompt {
     pub player: usize,
-    pub title: String,
+    pub title: Text,
     pub choices: Vec<Pick>,
     pub cards: Option<CardChoice>,
     pub can_skip: bool,
@@ -283,7 +283,7 @@ impl Game {
                             cost[give.index()] = rate;
                             actions.push(AvailableAction {
                                 action: Action::BankTrade { give, take },
-                                label: format!("{} → {}", give.name(), take.name()),
+                                label: crate::text!("{0} → {1}", give.name(), take.name()),
                                 target: None,
                                 cost,
                             });
@@ -304,7 +304,7 @@ impl Game {
                         {
                             actions.push(AvailableAction {
                                 action: Action::CompleteTrade { partner },
-                                label: format!("与{}成交", self.players[partner].name),
+                                label: crate::text!("与{0}成交", self.player_name(partner)),
                                 target: None,
                                 cost: trade.give,
                             });
@@ -340,14 +340,14 @@ impl Game {
         let active = viewer == Some(player);
         let mut prompt = Prompt {
             player,
-            title: String::new(),
+            title: Text::default(),
             choices: Vec::new(),
             cards: None,
             can_skip: false,
         };
         match effect {
             Effect::Discard { count, .. } => {
-                prompt.title = format!("弃掉 {count} 张手牌");
+                prompt.title = crate::text!("弃掉 {0} 张手牌", *count);
                 if active {
                     prompt.cards = Some(CardChoice {
                         available: self.players[player].hand,
@@ -379,7 +379,7 @@ impl Game {
                         .iter()
                         .map(|&value| Pick {
                             value,
-                            label: self.players[value].name.clone(),
+                            label: self.player_name(value),
                             target: None,
                         })
                         .collect();

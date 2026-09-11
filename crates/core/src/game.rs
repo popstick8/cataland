@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::{
-    Mode, Seat,
+    Mode, Seat, Text,
     awards::Awards,
     board::{Board, Resource, Terrain},
     development::{Card, HeldCard},
@@ -229,7 +229,7 @@ pub struct GameEvent {
     pub seq: u64,
     pub player: Option<usize>,
     pub kind: String,
-    pub text: String,
+    pub text: Text,
     pub target: Option<Target>,
 }
 
@@ -263,7 +263,15 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(mode: Mode, seats: &[Seat], starter: Option<usize>) -> Result<Self, String> {
+    pub fn player_name(&self, player: usize) -> Text {
+        if player >= self.humans {
+            crate::text!("中立势力 {0}", player - self.humans + 1)
+        } else {
+            Text::from(&self.players[player].name)
+        }
+    }
+
+    pub fn new(mode: Mode, seats: &[Seat], starter: Option<usize>) -> Result<Self, Text> {
         if !(2..=6).contains(&seats.len()) {
             return Err("一局需要 2–6 名玩家".into());
         }
@@ -346,7 +354,7 @@ impl Game {
         Ok(game)
     }
 
-    pub fn apply(&mut self, player: usize, action: Action) -> Result<(), String> {
+    pub fn apply(&mut self, player: usize, action: Action) -> Result<(), Text> {
         if player >= self.humans {
             return Err("这个席位不在对局中".into());
         }
@@ -392,9 +400,9 @@ impl Game {
                 self.record(
                     Some(player),
                     "build",
-                    format!(
-                        "{}放置了起始{}",
-                        self.players[player].name,
+                    crate::text!(
+                        "{0}放置了起始{1}",
+                        self.player_name(player),
                         if kind == BuildingKind::City {
                             "城市"
                         } else {
@@ -433,7 +441,7 @@ impl Game {
                 self.record(
                     Some(player),
                     "build",
-                    format!("{}放置了起始道路", self.players[player].name),
+                    crate::text!("{0}放置了起始道路", self.player_name(player)),
                     Some(Target::Edge(edge)),
                 );
                 let next = step + 1;
@@ -582,7 +590,7 @@ impl Game {
         &mut self,
         player: Option<usize>,
         kind: &str,
-        text: String,
+        text: Text,
         target: Option<Target>,
     ) {
         self.events.push(Event {
@@ -613,7 +621,7 @@ impl Game {
             .all(|(have, need)| have >= need)
     }
 
-    pub fn pay(&mut self, player: usize, cards: &Cards) -> Result<(), String> {
+    pub fn pay(&mut self, player: usize, cards: &Cards) -> Result<(), Text> {
         if !self.can_pay(player, cards) {
             return Err("手牌数量不足".into());
         }
@@ -646,9 +654,12 @@ impl Game {
         self.record(
             Some(self.turn.player),
             "roll",
-            format!(
-                "{}掷出 {} + {} = {}",
-                self.players[self.turn.player].name, dice[0], dice[1], total
+            crate::text!(
+                "{0}掷出 {1} + {2} = {3}",
+                self.player_name(self.turn.player),
+                dice[0],
+                dice[1],
+                total
             ),
             None,
         );
@@ -730,9 +741,9 @@ impl Game {
                     self.record(
                         Some(player),
                         "production",
-                        format!(
-                            "{}获得 {} 张{}",
-                            self.players[player].name,
+                        crate::text!(
+                            "{0}获得 {1} 张{2}",
+                            self.player_name(player),
                             amount,
                             resource.name()
                         ),
@@ -850,7 +861,7 @@ impl Game {
         }
     }
 
-    fn resolve(&mut self, player: usize, action: Action) -> Result<(), String> {
+    fn resolve(&mut self, player: usize, action: Action) -> Result<(), Text> {
         let index = self.pending_index(player).ok_or("当前由其他玩家完成选择")?;
         let effect = self.pending[index].clone();
         match (effect, action) {
@@ -884,14 +895,14 @@ impl Game {
             }
             (Effect::Discard { count, .. }, Action::SelectCards { cards }) => {
                 if cards.iter().map(|&count| u32::from(count)).sum::<u32>() != u32::from(count) {
-                    return Err(format!("需要选择 {count} 张牌"));
+                    return Err(crate::text!("需要选择 {0} 张牌", count));
                 }
                 self.pay(player, &cards)?;
                 self.pending.remove(index);
                 self.record(
                     Some(player),
                     "discard",
-                    format!("{}弃掉了 {count} 张牌", self.players[player].name),
+                    crate::text!("{0}弃掉了 {1} 张牌", self.player_name(player), count),
                     None,
                 );
             }
@@ -904,7 +915,7 @@ impl Game {
                 self.record(
                     Some(player),
                     "robber",
-                    format!("{}移动了强盗", self.players[player].name),
+                    crate::text!("{0}移动了强盗", self.player_name(player)),
                     Some(Target::Hex(value)),
                 );
                 let mut targets = Vec::new();
@@ -977,7 +988,7 @@ impl Game {
         None
     }
 
-    pub fn private_event(&mut self, audience: Vec<usize>, text: String) {
+    pub fn private_event(&mut self, audience: Vec<usize>, text: Text) {
         self.events.push(Event {
             message: GameEvent {
                 seq: self.events.len() as u64 + 1,
@@ -995,15 +1006,16 @@ impl Game {
             self.record(
                 Some(player),
                 "steal",
-                format!(
-                    "{}从{}处取得一张牌",
-                    self.players[player].name, self.players[target].name
+                crate::text!(
+                    "{0}从{1}处取得一张牌",
+                    self.player_name(player),
+                    self.player_name(target)
                 ),
                 None,
             );
             self.private_event(
                 vec![player, target],
-                format!("取得的牌是{}", resource.name()),
+                crate::text!("取得的牌是{0}", resource.name()),
             );
         }
     }

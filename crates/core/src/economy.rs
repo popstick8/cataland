@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::{
-    Mode,
+    Mode, Text,
     board::Resource,
     game::{Action, Building, BuildingKind, Cards, Game, Stage, Target},
 };
@@ -92,7 +92,7 @@ impl Game {
                 })
     }
 
-    pub fn build_road(&mut self, player: usize, edge: usize, cost: &Cards) -> Result<(), String> {
+    pub fn build_road(&mut self, player: usize, edge: usize, cost: &Cards) -> Result<(), Text> {
         if self.players[player].roads == 0 || !self.can_road(player, edge) {
             return Err("请选择连接自己道路或建筑的空边".into());
         }
@@ -102,13 +102,13 @@ impl Game {
         self.record(
             Some(player),
             "build",
-            format!("{}建造了一条道路", self.players[player].name),
+            crate::text!("{0}建造了一条道路", self.player_name(player)),
             Some(Target::Edge(edge)),
         );
         Ok(())
     }
 
-    pub fn build_settlement(&mut self, player: usize, vertex: usize) -> Result<(), String> {
+    pub fn build_settlement(&mut self, player: usize, vertex: usize) -> Result<(), Text> {
         if self.players[player].settlements == 0 || !self.can_settle(player, vertex, false) {
             return Err("请选择连接自己道路且满足建筑间距的位置".into());
         }
@@ -122,13 +122,13 @@ impl Game {
         self.record(
             Some(player),
             "build",
-            format!("{}建造了一座村庄", self.players[player].name),
+            crate::text!("{0}建造了一座村庄", self.player_name(player)),
             Some(Target::Vertex(vertex)),
         );
         Ok(())
     }
 
-    pub fn build_city(&mut self, player: usize, vertex: usize, cost: &Cards) -> Result<(), String> {
+    pub fn build_city(&mut self, player: usize, vertex: usize, cost: &Cards) -> Result<(), Text> {
         if !self.can_city(player, vertex) {
             return Err("请选择自己的村庄，并预留一枚城市棋子".into());
         }
@@ -152,13 +152,13 @@ impl Game {
         self.record(
             Some(player),
             "build",
-            format!("{}将村庄升级为城市", self.players[player].name),
+            crate::text!("{0}将村庄升级为城市", self.player_name(player)),
             Some(Target::Vertex(vertex)),
         );
         Ok(())
     }
 
-    pub fn economy(&mut self, player: usize, action: Action) -> Result<(), String> {
+    pub fn economy(&mut self, player: usize, action: Action) -> Result<(), Text> {
         match action {
             Action::BuildRoad { edge } => {
                 self.build_road(player, edge, &ROAD)?;
@@ -180,9 +180,9 @@ impl Game {
                 self.record(
                     Some(player),
                     "trade",
-                    format!(
-                        "{}用 {} 张{}换取 1 张{}",
-                        self.players[player].name,
+                    crate::text!(
+                        "{0}用 {1} 张{2}换取 1 张{3}",
+                        self.player_name(player),
                         cost[give.index()],
                         give.name(),
                         take.name()
@@ -236,9 +236,10 @@ impl Game {
                 self.record(
                     Some(player),
                     "trade",
-                    format!(
-                        "{}与{}完成交易",
-                        self.players[player].name, self.players[partner].name
+                    crate::text!(
+                        "{0}与{1}完成交易",
+                        self.player_name(player),
+                        self.player_name(partner)
                     ),
                     None,
                 );
@@ -248,7 +249,7 @@ impl Game {
         Ok(())
     }
 
-    pub fn respond_trade(&mut self, player: usize, accept: bool) -> Result<(), String> {
+    pub fn respond_trade(&mut self, player: usize, accept: bool) -> Result<(), Text> {
         if self.stage != Stage::Action || !self.pending.is_empty() {
             return Err("当前的结算完成后才能交易".into());
         }
@@ -276,9 +277,9 @@ impl Game {
             self.record(
                 Some(player),
                 "victory",
-                format!(
-                    "{}以 {} 分获胜",
-                    self.players[player].name,
+                crate::text!(
+                    "{0}以 {1} 分获胜",
+                    self.player_name(player),
                     self.score(player)
                 ),
                 None,

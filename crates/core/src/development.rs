@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::{
-    Mode,
+    Mode, Text,
     board::Resource,
     game::{Action, Cards, Effect, Game, Stage, Target},
     view::{AvailableAction, CardChoice, Pick, Prompt},
@@ -66,7 +66,7 @@ impl Game {
                 .count() as u16
     }
 
-    pub fn buy_development(&mut self, player: usize) -> Result<(), String> {
+    pub fn buy_development(&mut self, player: usize) -> Result<(), Text> {
         if self.mode != Mode::Base || self.dev_deck.is_empty() {
             return Err("发展牌堆中已经没有牌".into());
         }
@@ -80,7 +80,7 @@ impl Game {
         self.record(
             Some(player),
             "card",
-            format!("{}购买了一张发展卡", self.players[player].name),
+            crate::text!("{0}购买了一张发展卡", self.player_name(player)),
             None,
         );
         Ok(())
@@ -113,7 +113,7 @@ impl Game {
         }
     }
 
-    pub fn play_card(&mut self, player: usize, card: Card) -> Result<(), String> {
+    pub fn play_card(&mut self, player: usize, card: Card) -> Result<(), Text> {
         if !self.can_play(player, card) {
             return Err("这张卡当前无法使用".into());
         }
@@ -127,7 +127,7 @@ impl Game {
         self.record(
             Some(player),
             "card",
-            format!("{}使用了{}", self.players[player].name, card.name()),
+            crate::text!("{0}使用了{1}", self.player_name(player), card.name()),
             None,
         );
         match card {
@@ -183,7 +183,7 @@ impl Game {
         index: usize,
         effect: Effect,
         action: Action,
-    ) -> Result<(), String> {
+    ) -> Result<(), Text> {
         match (effect, action) {
             (Effect::FreeRoad { remaining, .. }, Action::Pick { value }) => {
                 self.build_road(player, value, &[0; 8])?;
@@ -206,7 +206,7 @@ impl Game {
                 if cards.iter().map(|&value| u32::from(value)).sum::<u32>() != u32::from(count)
                     || cards[5..].iter().any(|&value| value != 0)
                 {
-                    return Err(format!("请选择 {count} 张基础资源"));
+                    return Err(crate::text!("请选择 {0} 张基础资源", count));
                 }
                 if cards
                     .iter()
@@ -222,7 +222,7 @@ impl Game {
                 self.record(
                     Some(player),
                     "production",
-                    format!("{}从银行取得 {count} 张资源", self.players[player].name),
+                    crate::text!("{0}从银行取得 {1} 张资源", self.player_name(player), count),
                     None,
                 );
             }
@@ -240,9 +240,10 @@ impl Game {
                 self.record(
                     Some(player),
                     "card",
-                    format!(
-                        "{}通过垄断取得 {total} 张{}",
-                        self.players[player].name,
+                    crate::text!(
+                        "{0}通过垄断取得 {1} 张{2}",
+                        self.player_name(player),
+                        total,
                         resource.name()
                     ),
                     None,
@@ -256,7 +257,7 @@ impl Game {
     pub fn card_prompt(&self, effect: &Effect, prompt: &mut Prompt, active: bool) {
         match effect {
             Effect::FreeRoad { remaining, .. } => {
-                prompt.title = format!("免费修路，还可放置 {remaining} 条");
+                prompt.title = crate::text!("免费修路，还可放置 {0} 条", *remaining);
                 if active {
                     prompt.can_skip = true;
                     prompt.choices = (0..self.board.edges.len())
@@ -270,7 +271,7 @@ impl Game {
                 }
             }
             Effect::BankCards { count, .. } => {
-                prompt.title = format!("从银行取得 {count} 张资源");
+                prompt.title = crate::text!("从银行取得 {0} 张资源", *count);
                 if active {
                     let mut available = self.bank;
                     available[5..].fill(0);

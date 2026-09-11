@@ -317,7 +317,11 @@ export function GameTable({
 							</h3>
 							{ownPrompt && prompt.cards && (
 								<CardPicker
-									key={`${prompt.player}-${prompt.title}-${prompt.cards.available.join()}`}
+									key={JSON.stringify([
+										prompt.player,
+										prompt.title,
+										prompt.cards.available,
+									])}
 									selection={prompt.cards}
 									busy={session.busy}
 									submit={(cards) => act({ type: "selectCards", cards })}
@@ -451,7 +455,7 @@ export function GameTable({
 								)}
 								{game.events.slice(-eventCount).map((event) => (
 									<p key={event.seq} className={`event event-${event.kind}`}>
-										{event.text}
+										{t(event.text)}
 									</p>
 								))}
 							</div>

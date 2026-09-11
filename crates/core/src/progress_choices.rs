@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    Text,
     board::Resource,
     duel::NeutralBuild,
     game::{Action, Cards, Game, Target},
@@ -55,7 +56,7 @@ impl Game {
     pub fn progress_available(&self, player: usize, choice: &ProgressChoice) -> bool {
         let mut prompt = Prompt {
             player,
-            title: String::new(),
+            title: Text::default(),
             choices: Vec::new(),
             cards: None,
             can_skip: false,
@@ -64,7 +65,7 @@ impl Game {
         !prompt.choices.is_empty() || prompt.cards.is_some()
     }
 
-    pub fn transfer_cards(&mut self, from: usize, to: usize, cards: &Cards) -> Result<(), String> {
+    pub fn transfer_cards(&mut self, from: usize, to: usize, cards: &Cards) -> Result<(), Text> {
         if !self.can_pay(from, cards) {
             return Err("手牌不足以完成交换".into());
         }
@@ -81,7 +82,7 @@ impl Game {
         index: usize,
         choice: ProgressChoice,
         action: Action,
-    ) -> Result<(), String> {
+    ) -> Result<(), Text> {
         let prompt = self.prompt(Some(player)).ok_or("当前没有卡牌选择")?;
         match &action {
             Action::Pick { value } if prompt.choices.iter().any(|pick| pick.value == *value) => {}
@@ -128,7 +129,7 @@ impl Game {
                     self.record(
                         Some(player),
                         "invention",
-                        format!("{}交换了两块地形的数字", self.players[player].name),
+                        crate::text!("{0}交换了两块地形的数字", self.player_name(player)),
                         Some(Target::Hex(value)),
                     );
                 } else {
@@ -155,7 +156,7 @@ impl Game {
                 self.record(
                     Some(player),
                     "merchant",
-                    format!("{}取得了商人", self.players[player].name),
+                    crate::text!("{0}取得了商人", self.player_name(player)),
                     Some(Target::Hex(value)),
                 );
             }
@@ -176,9 +177,10 @@ impl Game {
                 self.record(
                     Some(player),
                     "trade",
-                    format!(
-                        "{}取得 {count} 张{}",
-                        self.players[player].name,
+                    crate::text!(
+                        "{0}取得 {1} 张{2}",
+                        self.player_name(player),
+                        count,
                         Resource::ALL[value].name()
                     ),
                     None,
@@ -192,9 +194,10 @@ impl Game {
                 self.record(
                     Some(player),
                     "trade",
-                    format!(
-                        "{}向{}收取行会会费",
-                        self.players[player].name, self.players[target].name
+                    crate::text!(
+                        "{0}向{1}收取行会会费",
+                        self.player_name(player),
+                        self.player_name(target)
                     ),
                     None,
                 );
@@ -208,15 +211,16 @@ impl Game {
                 self.record(
                     Some(player),
                     "progress",
-                    format!(
-                        "{}从{}处取得一张进步卡",
-                        self.players[player].name, self.players[target].name
+                    crate::text!(
+                        "{0}从{1}处取得一张进步卡",
+                        self.player_name(player),
+                        self.player_name(target)
                     ),
                     None,
                 );
                 self.private_event(
                     vec![player, target],
-                    format!("转移的进步卡是{}", card.info().name),
+                    crate::text!("转移的进步卡是{0}", card.info().name),
                 );
             }
             (ProgressChoice::Diplomacy, Action::Pick { value }) => {
@@ -225,9 +229,10 @@ impl Game {
                 self.record(
                     Some(player),
                     "road",
-                    format!(
-                        "{}移除了{}的一条开放道路",
-                        self.players[player].name, self.players[owner].name
+                    crate::text!(
+                        "{0}移除了{1}的一条开放道路",
+                        self.player_name(player),
+                        self.player_name(owner)
                     ),
                     Some(Target::Edge(value)),
                 );
@@ -248,7 +253,7 @@ impl Game {
                 self.record(
                     Some(player),
                     "knight",
-                    format!("{}驱逐了一名敌方骑士", self.players[player].name),
+                    crate::text!("{0}驱逐了一名敌方骑士", self.player_name(player)),
                     Some(Target::Vertex(value)),
                 );
             }
@@ -257,7 +262,7 @@ impl Game {
                 self.record(
                     Some(player),
                     "robber",
-                    format!("{}移动强盗并征税", self.players[player].name),
+                    crate::text!("{0}移动强盗并征税", self.player_name(player)),
                     Some(Target::Hex(value)),
                 );
                 let mut targets = Vec::new();
@@ -293,7 +298,7 @@ impl Game {
                 self.record(
                     Some(owner),
                     "knight",
-                    format!("{}的一名骑士离开了棋盘", self.players[owner].name),
+                    crate::text!("{0}的一名骑士离开了棋盘", self.player_name(owner)),
                     Some(Target::Vertex(value)),
                 );
                 self.queue_progress(
@@ -320,9 +325,10 @@ impl Game {
                 self.record(
                     Some(player),
                     "trade",
-                    format!(
-                        "{}向{}送出婚礼礼物",
-                        self.players[player].name, self.players[recipient].name
+                    crate::text!(
+                        "{0}向{1}送出婚礼礼物",
+                        self.player_name(player),
+                        self.player_name(recipient)
                     ),
                     None,
                 );
@@ -339,7 +345,7 @@ impl Game {
                     self.record(
                         Some(player),
                         "trade",
-                        format!("{}没有商品，商业港交换结束", self.players[target].name),
+                        crate::text!("{0}没有商品，商业港交换结束", self.player_name(target)),
                         None,
                     );
                 }
@@ -349,9 +355,10 @@ impl Game {
                 self.record(
                     Some(player),
                     "trade",
-                    format!(
-                        "{}与{}完成商业港交换",
-                        self.players[player].name, self.players[recipient].name
+                    crate::text!(
+                        "{0}与{1}完成商业港交换",
+                        self.player_name(player),
+                        self.player_name(recipient)
                     ),
                     None,
                 );
@@ -410,7 +417,7 @@ impl Game {
             ProgressChoice::Alchemy { .. } => (1..=6)
                 .map(|value| Pick {
                     value,
-                    label: value.to_string(),
+                    label: value.to_string().into(),
                     target: None,
                 })
                 .collect(),
@@ -476,7 +483,7 @@ impl Game {
                 })
                 .map(|value| Pick {
                     value,
-                    label: self.players[value].name.clone(),
+                    label: self.player_name(value),
                     target: None,
                 })
                 .collect(),
@@ -484,7 +491,7 @@ impl Game {
                 .filter(|&other| other != player && !self.players[other].progress.is_empty())
                 .map(|value| Pick {
                     value,
-                    label: self.players[value].name.clone(),
+                    label: self.player_name(value),
                     target: None,
                 })
                 .collect(),
@@ -494,7 +501,7 @@ impl Game {
                 .enumerate()
                 .map(|(value, card)| Pick {
                     value,
-                    label: format!("{} · {}", card.info().name, card.info().description),
+                    label: crate::text!("{0} · {1}", card.info().name, card.info().description),
                     target: None,
                 })
                 .collect(),
@@ -547,7 +554,7 @@ impl Game {
                 })
                 .map(|value| Pick {
                     value,
-                    label: self.players[value].name.clone(),
+                    label: self.player_name(value),
                     target: None,
                 })
                 .collect(),
@@ -570,7 +577,7 @@ impl Game {
                 })
                 .map(|level| Pick {
                     value: usize::from(level),
-                    label: format!("{level} 级骑士"),
+                    label: crate::text!("{0} 级骑士", level),
                     target: None,
                 })
                 .collect(),

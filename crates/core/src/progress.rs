@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::{
+    Text,
     cities::Track,
     game::{Effect, Game},
     view::{Pick, Prompt},
@@ -218,9 +219,9 @@ impl Game {
             self.record(
                 Some(player),
                 "award",
-                format!(
-                    "{}获得{}，增加一分",
-                    self.players[player].name,
+                crate::text!(
+                    "{0}获得{1}，增加一分",
+                    self.player_name(player),
                     card.info().name
                 ),
                 None,
@@ -230,21 +231,21 @@ impl Game {
             self.record(
                 Some(player),
                 "progress",
-                format!(
-                    "{}取得一张{}进步卡",
-                    self.players[player].name,
+                crate::text!(
+                    "{0}取得一张{1}进步卡",
+                    self.player_name(player),
                     track.name()
                 ),
                 None,
             );
-            self.private_event(vec![player], format!("取得{}", card.info().name));
+            self.private_event(vec![player], crate::text!("取得{0}", card.info().name));
             if player != self.turn.player && self.players[player].progress.len() > 4 {
                 self.pending.push_front(Effect::ProgressDiscard { player });
             }
         }
     }
 
-    pub fn discard_progress(&mut self, player: usize, index: usize) -> Result<(), String> {
+    pub fn discard_progress(&mut self, player: usize, index: usize) -> Result<(), Text> {
         let card = *self.players[player]
             .progress
             .get(index)
@@ -255,16 +256,16 @@ impl Game {
         self.record(
             Some(player),
             "progress",
-            format!("{}归还了一张进步卡", self.players[player].name),
+            crate::text!("{0}归还了一张进步卡", self.player_name(player)),
             None,
         );
-        self.private_event(vec![player], format!("归还{}", card.info().name));
+        self.private_event(vec![player], crate::text!("归还{0}", card.info().name));
         Ok(())
     }
 
     pub fn progress_discard_prompt(&self, player: usize, active: bool, prompt: &mut Prompt) {
-        prompt.title = format!(
-            "归还 {} 张进步卡",
+        prompt.title = crate::text!(
+            "归还 {0} 张进步卡",
             self.players[player].progress.len().saturating_sub(4)
         );
         if active {

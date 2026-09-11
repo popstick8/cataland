@@ -1,11 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
-import type { ClientView, RoomAction } from "./bindings";
+import type { ClientView, RoomAction, Text } from "./bindings";
+import { errorText } from "./locale";
 
 export function useSession() {
 	const [view, setView] = useState<ClientView | null>(null);
-	const [error, setError] = useState<string | null>(null);
+	const [error, setError] = useState<Text | null>(null);
 	const [busy, setBusy] = useState(false);
 
 	const run = useCallback(
@@ -16,7 +17,7 @@ export function useSession() {
 				if (command === "session") setView(await invoke<ClientView>(command));
 				else await invoke(command, args);
 			} catch (cause) {
-				setError(String(cause));
+				setError(errorText(cause));
 			} finally {
 				setBusy(false);
 			}
@@ -33,7 +34,7 @@ export function useSession() {
 				received = true;
 				if (active) setView(payload);
 			}),
-			listen<string>("notice", ({ payload }) => {
+			listen<Text>("notice", ({ payload }) => {
 				if (active) setError(payload);
 			}),
 		])
@@ -47,7 +48,7 @@ export function useSession() {
 				if (active && !received) setView(initial);
 			})
 			.catch((cause) => {
-				if (active) setError(String(cause));
+				if (active) setError(errorText(cause));
 			});
 		return () => {
 			active = false;
@@ -59,7 +60,10 @@ export function useSession() {
 		(action: RoomAction) => run("room_action", { action }),
 		[run],
 	);
-	const report = useCallback((cause: unknown) => setError(String(cause)), []);
+	const report = useCallback(
+		(cause: unknown) => setError(errorText(cause)),
+		[],
+	);
 	return {
 		view,
 		error,

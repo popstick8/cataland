@@ -8,6 +8,7 @@ import {
 	Text,
 } from "pixi.js";
 import type { Action, Board, GameView, Target, Terrain } from "./bindings";
+import type { Translate } from "./locale";
 import { colors } from "./palette";
 
 export type BoardOption = { target: Target; action: Action };
@@ -59,6 +60,7 @@ export async function createScene(
 	initial: GameView,
 	initialOptions: BoardOption[],
 	initialAction: (action: Action) => void,
+	initialText: Translate,
 ) {
 	const app = new Application();
 	await app.init({
@@ -72,7 +74,7 @@ export async function createScene(
 	});
 	const terrain = await Assets.load<Spritesheet>("/art/terrain.json");
 	element.append(app.canvas);
-	app.canvas.setAttribute("aria-label", "游戏棋盘");
+	app.canvas.setAttribute("aria-label", initialText("游戏棋盘"));
 	app.canvas.style.touchAction = "none";
 	const world = new Container();
 	const pieces = new Container();
@@ -82,6 +84,7 @@ export async function createScene(
 	let act = initialAction;
 	const board = initial.board;
 	const numbers: Text[] = [];
+	const labels: { label: Text; key: string; suffix: string }[] = [];
 	const pips: Graphics[] = [];
 	for (const [id, hex] of board.hexes.entries()) {
 		const tile = new Container();
@@ -94,7 +97,9 @@ export async function createScene(
 		tile.addChild(surface);
 		const x = hex.x * 80;
 		const y = hex.y * 66;
-		tile.addChild(caption(land[hex.terrain].name, x, y + 35, 12));
+		const label = caption(initialText(land[hex.terrain].name), x, y + 35, 12);
+		labels.push({ label, key: land[hex.terrain].name, suffix: "" });
+		tile.addChild(label);
 		if (hex.number > 0) {
 			tile.addChild(
 				new Graphics()
@@ -154,15 +159,11 @@ export async function createScene(
 			coin: "铸币",
 			paper: "纸张",
 		};
-		world.addChild(
-			caption(
-				harbor.resource ? `${names[harbor.resource]} 2:1` : "3:1",
-				px,
-				py + 27,
-				12,
-				0xe8f1db,
-			),
-		);
+		const key = harbor.resource ? names[harbor.resource] : "3:1";
+		const suffix = harbor.resource ? " 2:1" : "";
+		const label = caption(initialText(key) + suffix, px, py + 27, 12, 0xe8f1db);
+		labels.push({ label, key, suffix });
+		world.addChild(label);
 	}
 	world.addChild(pieces, hints);
 	const xs = board.vertices.map((point) => point.x * 80);
@@ -324,8 +325,11 @@ export async function createScene(
 		view: GameView,
 		nextOptions: BoardOption[],
 		onAction: (action: Action) => void,
+		t: Translate,
 	) => {
 		options = nextOptions;
+		app.canvas.setAttribute("aria-label", t("游戏棋盘"));
+		for (const { label, key, suffix } of labels) label.text = t(key) + suffix;
 		act = onAction;
 		for (const child of pieces.removeChildren())
 			child.destroy({ children: true });
@@ -512,7 +516,7 @@ export async function createScene(
 		paint();
 	};
 	fit();
-	update(initial, initialOptions, initialAction);
+	update(initial, initialOptions, initialAction, initialText);
 	return {
 		update,
 		fit,

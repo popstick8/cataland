@@ -9,7 +9,7 @@ struct Bindings(BTreeMap<String, String>);
 impl TypeVisitor for Bindings {
     fn visit<T: TS + 'static + ?Sized>(&mut self) {
         if T::output_path().is_none() {
-            T::visit_dependencies(self);
+            T::visit_generics(self);
             return;
         }
         let config = Config::new().with_large_int("number");

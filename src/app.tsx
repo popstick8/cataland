@@ -71,7 +71,7 @@ export function App() {
 				)}
 				{session.error && (
 					<div className="error" role="alert">
-						<span>{session.error}</span>
+						<span>{t(session.error)}</span>
 						<button
 							type="button"
 							className="icon-button"

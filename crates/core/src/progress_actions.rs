@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::{
+    Text,
     board::Resource,
     cities::Track,
     game::{Action, Effect, Game, Stage},
@@ -73,7 +74,7 @@ impl Game {
             if self.can_harbor(player, target) {
                 actions.push(AvailableAction {
                     action: Action::HarborTrade { target },
-                    label: format!("与{}进行商业港交换", self.players[target].name),
+                    label: crate::text!("与{0}进行商业港交换", self.player_name(target)),
                     target: None,
                     cost: [0; 8],
                 });
@@ -86,7 +87,7 @@ impl Game {
         self.pending.push_front(Effect::Progress { player, choice });
     }
 
-    pub fn play_progress(&mut self, player: usize, card: Progress) -> Result<(), String> {
+    pub fn play_progress(&mut self, player: usize, card: Progress) -> Result<(), Text> {
         if !self.can_play_progress(player, card) {
             return Err("这张进步卡当前无法使用".into());
         }
@@ -101,7 +102,7 @@ impl Game {
         self.record(
             Some(player),
             "progress",
-            format!("{}使用了{}", self.players[player].name, card.info().name),
+            crate::text!("{0}使用了{1}", self.player_name(player), card.info().name),
             None,
         );
         let choice = match card {
@@ -194,9 +195,10 @@ impl Game {
                 self.record(
                     Some(player),
                     "production",
-                    format!(
-                        "{}获得 {received} 张{}",
-                        self.players[player].name,
+                    crate::text!(
+                        "{0}获得 {1} 张{2}",
+                        self.player_name(player),
+                        received,
                         resource.name()
                     ),
                     None,
@@ -236,7 +238,7 @@ impl Game {
                 .any(|&count| count > 0)
     }
 
-    pub fn harbor_trade(&mut self, player: usize, target: usize) -> Result<(), String> {
+    pub fn harbor_trade(&mut self, player: usize, target: usize) -> Result<(), Text> {
         if !self.can_harbor(player, target) {
             return Err("请选择商业港可以交换的玩家，并预留一张基础资源".into());
         }

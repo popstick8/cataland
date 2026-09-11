@@ -37,7 +37,7 @@ export type Action =
 
 export type AvailableAction = {
 	action: Action;
-	label: string;
+	label: Text;
 	target: Target | null;
 	cost: [number, number, number, number, number, number, number, number];
 };
@@ -115,7 +115,7 @@ export type GameEvent = {
 	seq: number;
 	player: number | null;
 	kind: string;
-	text: string;
+	text: Text;
 	target: Target | null;
 };
 
@@ -178,7 +178,7 @@ export type Merchant = { player: number; hex: number };
 
 export type Mode = "base" | "cities";
 
-export type Pick = { value: number; label: string; target: Target | null };
+export type Pick = { value: number; label: Text; target: Target | null };
 
 export type PlayerView = {
 	name: string;
@@ -253,7 +253,7 @@ export type ProgressView = {
 
 export type Prompt = {
 	player: number;
-	title: string;
+	title: Text;
 	choices: Array<Pick>;
 	cards: CardChoice | null;
 	canSkip: boolean;
@@ -275,7 +275,7 @@ export type Resource =
 
 export type Response =
 	| { type: "state"; room: RoomView }
-	| { type: "error"; message: string };
+	| { type: "error"; message: Text };
 
 export type RoomAction =
 	| { type: "start" }
@@ -346,6 +346,11 @@ export type Terrain =
 	| "fields"
 	| "mountains"
 	| "desert";
+
+export type Text =
+	| string
+	| { key: string; args: Array<Text> }
+	| { items: Array<Text> };
 
 export type TokenAction =
 	| { type: "trade"; commodities: boolean }

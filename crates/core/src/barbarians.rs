@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::{
+    Text,
     board::Terrain,
     cities::Track,
     game::{BuildingKind, Effect, Game, Target},
@@ -44,7 +45,7 @@ impl Game {
             self.record(
                 Some(self.turn.player),
                 "event",
-                format!("{}城门出现，红骰为 {red}", track.name()),
+                crate::text!("{0}城门出现，红骰为 {1}", track.name(), red),
                 None,
             );
             for offset in 0..self.humans {
@@ -61,7 +62,7 @@ impl Game {
             self.record(
                 None,
                 "barbarians",
-                format!("野蛮人船前进至第 {position} 格"),
+                crate::text!("野蛮人船前进至第 {0} 格", position),
                 None,
             );
             if position == 7 {
@@ -101,7 +102,7 @@ impl Game {
             self.record(
                 None,
                 "defense",
-                format!("岛屿守卫以 {total} 点防御力击退 {strength} 点野蛮人"),
+                crate::text!("岛屿守卫以 {0} 点防御力击退 {1} 点野蛮人", total, strength),
                 None,
             );
             let highest = defense[..self.humans].iter().copied().max().unwrap_or(0);
@@ -113,7 +114,7 @@ impl Game {
                 self.record(
                     Some(player),
                     "award",
-                    format!("{}成为卡坦守护者，增加一分", self.players[player].name),
+                    crate::text!("{0}成为卡坦守护者，增加一分", self.player_name(player)),
                     None,
                 );
             } else {
@@ -128,7 +129,7 @@ impl Game {
             self.record(
                 None,
                 "pillage",
-                format!("{strength} 点野蛮人突破了 {total} 点防御"),
+                crate::text!("{0} 点野蛮人突破了 {1} 点防御", strength, total),
                 None,
             );
             let eligible: Vec<_> = (0..self.humans)
@@ -144,7 +145,7 @@ impl Game {
         }
     }
 
-    pub fn pillage(&mut self, player: usize, vertex: usize) -> Result<(), String> {
+    pub fn pillage(&mut self, player: usize, vertex: usize) -> Result<(), Text> {
         if !self.ordinary_cities(player).contains(&vertex) {
             return Err("请选择自己的普通城市承受损失".into());
         }
@@ -163,7 +164,7 @@ impl Game {
         self.record(
             Some(player),
             "pillage",
-            format!("{}的一座城市降为村庄", self.players[player].name),
+            crate::text!("{0}的一座城市降为村庄", self.player_name(player)),
             Some(Target::Vertex(vertex)),
         );
         Ok(())

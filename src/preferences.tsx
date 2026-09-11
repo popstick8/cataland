@@ -8,8 +8,8 @@ import {
 } from "@tauri-apps/api/window";
 import { Monitor as MonitorIcon, Settings, Volume2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { Preferences } from "./bindings";
-import { useText } from "./locale";
+import type { Preferences, Text } from "./bindings";
+import { errorText, useText } from "./locale";
 import "./preferences.css";
 
 export function PreferencesPanel({
@@ -27,7 +27,7 @@ export function PreferencesPanel({
 	const [originalMonitor, setOriginalMonitor] = useState("");
 	const [fullscreen, setFullscreen] = useState(false);
 	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const [error, setError] = useState<Text | null>(null);
 	useEffect(() => {
 		dialog.current?.showModal();
 		let active = true;
@@ -49,7 +49,7 @@ export function PreferencesPanel({
 				setOriginalMonitor(String(index));
 			})
 			.catch((cause) => {
-				if (active) setError(String(cause));
+				if (active) setError(errorText(cause));
 			});
 		return () => {
 			active = false;
@@ -80,7 +80,7 @@ export function PreferencesPanel({
 			await invoke("preferences", { preferences: value });
 			close();
 		} catch (cause) {
-			setError(String(cause));
+			setError(errorText(cause));
 		} finally {
 			setBusy(false);
 		}
@@ -109,7 +109,7 @@ export function PreferencesPanel({
 				</header>
 				{error && (
 					<p role="alert" className="settings-error">
-						{error}
+						{error && t(error)}
 					</p>
 				)}
 				<section>

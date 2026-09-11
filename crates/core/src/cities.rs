@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::{
-    Mode,
+    Mode, Text,
     board::Resource,
     game::{Action, BuildingKind, Cards, Effect, Game, Target},
     view::{AvailableAction, Pick, Prompt},
@@ -168,7 +168,7 @@ impl Game {
             && self.can_pay(player, &self.improvement_cost(player, track, discount))
     }
 
-    pub fn improve(&mut self, player: usize, track: Track, discount: u8) -> Result<(), String> {
+    pub fn improve(&mut self, player: usize, track: Track, discount: u8) -> Result<(), Text> {
         if !self.can_improve(player, track, discount) {
             return Err("需要足够的商品、城市与可用的大都会位置".into());
         }
@@ -178,10 +178,11 @@ impl Game {
         self.record(
             Some(player),
             "improvement",
-            format!(
-                "{}的{}提升至 {level} 级：{}",
-                self.players[player].name,
+            crate::text!(
+                "{0}的{1}提升至 {2} 级：{3}",
+                self.player_name(player),
                 track.name(),
+                level,
                 track.building(level)
             ),
             None,
@@ -207,7 +208,7 @@ impl Game {
         player: usize,
         track: Track,
         vertex: usize,
-    ) -> Result<(), String> {
+    ) -> Result<(), Text> {
         if !self.ordinary_cities(player).contains(&vertex) {
             return Err("请选择自己的普通城市".into());
         }
@@ -218,7 +219,7 @@ impl Game {
         self.record(
             Some(player),
             "award",
-            format!("{}取得{}大都会", self.players[player].name, track.name()),
+            crate::text!("{0}取得{1}大都会", self.player_name(player), track.name()),
             Some(Target::Vertex(vertex)),
         );
         Ok(())
@@ -247,7 +248,7 @@ impl Game {
         })
     }
 
-    pub fn build_wall(&mut self, player: usize, vertex: usize, cost: &Cards) -> Result<(), String> {
+    pub fn build_wall(&mut self, player: usize, vertex: usize, cost: &Cards) -> Result<(), Text> {
         if !self.can_wall(player, vertex) {
             return Err("请选择自己的无城墙城市，每名玩家最多建造三座城墙".into());
         }
@@ -260,7 +261,7 @@ impl Game {
         self.record(
             Some(player),
             "build",
-            format!("{}修建了城墙", self.players[player].name),
+            crate::text!("{0}修建了城墙", self.player_name(player)),
             Some(Target::Vertex(vertex)),
         );
         Ok(())
@@ -313,7 +314,7 @@ impl Game {
             if self.can_improve(player, track, self.crane_discount(player)) {
                 actions.push(AvailableAction {
                     action: Action::Improve { track },
-                    label: format!("提升{}", track.name()),
+                    label: crate::text!("提升{0}", track.name()),
                     target: None,
                     cost: self.improvement_cost(player, track, self.crane_discount(player)),
                 });
@@ -341,7 +342,7 @@ impl Game {
         active: bool,
         prompt: &mut Prompt,
     ) {
-        prompt.title = format!("选择{}大都会的位置", track.name());
+        prompt.title = crate::text!("选择{0}大都会的位置", track.name());
         if active {
             prompt.choices = self
                 .ordinary_cities(player)

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::{
+    Text,
     cities::Track,
     game::{Action, Cards, Effect, Game, Stage, Target},
     view::{AvailableAction, Pick, Prompt},
@@ -64,7 +65,7 @@ impl Game {
         level: u8,
         active: bool,
         cost: &Cards,
-    ) -> Result<(), String> {
+    ) -> Result<(), Text> {
         if !(1..=3).contains(&level)
             || player >= self.players.len()
             || (player >= self.humans && (level > 2 || active))
@@ -84,7 +85,7 @@ impl Game {
         self.record(
             Some(player),
             "knight",
-            format!("{}放置了一名 {level} 级骑士", self.players[player].name),
+            crate::text!("{0}放置了一名 {1} 级骑士", self.player_name(player), level),
             Some(Target::Vertex(vertex)),
         );
         Ok(())
@@ -107,7 +108,7 @@ impl Game {
         player: usize,
         vertex: usize,
         cost: &Cards,
-    ) -> Result<u8, String> {
+    ) -> Result<u8, Text> {
         if !self.can_promote(player, vertex) {
             return Err("需要可晋升的骑士、对应棋子与城市发展等级".into());
         }
@@ -123,9 +124,9 @@ impl Game {
         self.record(
             Some(player),
             "knight",
-            format!(
-                "{}将骑士晋升为 {} 级",
-                self.players[player].name,
+            crate::text!(
+                "{0}将骑士晋升为 {1} 级",
+                self.player_name(player),
                 previous + 1
             ),
             Some(Target::Vertex(vertex)),
@@ -138,7 +139,7 @@ impl Game {
         player: usize,
         vertex: usize,
         cost: &Cards,
-    ) -> Result<(), String> {
+    ) -> Result<(), Text> {
         if !self
             .knight(vertex)
             .is_some_and(|knight| knight.player == player && !knight.active)
@@ -157,7 +158,7 @@ impl Game {
         self.record(
             Some(player),
             "knight",
-            format!("{}激活了一名骑士", self.players[player].name),
+            crate::text!("{0}激活了一名骑士", self.player_name(player)),
             Some(Target::Vertex(vertex)),
         );
         Ok(())
@@ -227,7 +228,7 @@ impl Game {
         player: usize,
         from: usize,
         to: usize,
-    ) -> Result<Option<Knight>, String> {
+    ) -> Result<Option<Knight>, Text> {
         if !self.move_sites(player, from).contains(&to) {
             return Err("骑士需要沿自己的道路移动到空位或更弱的敌方骑士处".into());
         }
@@ -238,7 +239,7 @@ impl Game {
         self.record(
             Some(player),
             "knight",
-            format!("{}移动了骑士", self.players[player].name),
+            crate::text!("{0}移动了骑士", self.player_name(player)),
             Some(Target::Vertex(to)),
         );
         Ok(displaced)
@@ -250,7 +251,7 @@ impl Game {
             [] => self.record(
                 Some(knight.player),
                 "knight",
-                format!("{}的骑士返回供应", self.players[knight.player].name),
+                crate::text!("{0}的骑士返回供应", self.player_name(knight.player)),
                 Some(Target::Vertex(from)),
             ),
             [vertex] => {
@@ -260,7 +261,7 @@ impl Game {
                 self.record(
                     Some(knight.player),
                     "knight",
-                    format!("{}重新安置了骑士", self.players[knight.player].name),
+                    crate::text!("{0}重新安置了骑士", self.player_name(knight.player)),
                     Some(Target::Vertex(*vertex)),
                 );
             }
@@ -283,7 +284,7 @@ impl Game {
                 .is_some_and(|hex| self.board.hexes[hex].vertices.contains(&vertex))
     }
 
-    pub fn expel_robber(&mut self, player: usize, vertex: usize) -> Result<(), String> {
+    pub fn expel_robber(&mut self, player: usize, vertex: usize) -> Result<(), Text> {
         if !self.can_expel(player, vertex) {
             return Err("请选择与强盗相邻且可以行动的骑士".into());
         }
@@ -296,13 +297,13 @@ impl Game {
         self.record(
             Some(player),
             "knight",
-            format!("{}派骑士驱逐强盗", self.players[player].name),
+            crate::text!("{0}派骑士驱逐强盗", self.player_name(player)),
             Some(Target::Vertex(vertex)),
         );
         Ok(())
     }
 
-    pub fn retire_knight(&mut self, player: usize, vertex: usize) -> Result<(), String> {
+    pub fn retire_knight(&mut self, player: usize, vertex: usize) -> Result<(), Text> {
         if self.humans != 2
             || !self
                 .knight(vertex)
@@ -319,7 +320,7 @@ impl Game {
         self.record(
             Some(player),
             "knight",
-            format!("{}交回了一名骑士", self.players[player].name),
+            crate::text!("{0}交回了一名骑士", self.player_name(player)),
             Some(Target::Vertex(vertex)),
         );
         Ok(())
@@ -406,7 +407,7 @@ impl Game {
                 {
                     actions.push(AvailableAction {
                         action: Action::RetireKnight { vertex },
-                        label: format!("交回骑士 · 获得 {} 筹码", knight.level),
+                        label: crate::text!("交回骑士 · 获得 {0} 筹码", knight.level),
                         target: Some(Target::Vertex(vertex)),
                         cost: [0; 8],
                     });
@@ -422,7 +423,7 @@ impl Game {
         index: usize,
         effect: Effect,
         action: Action,
-    ) -> Result<(), String> {
+    ) -> Result<(), Text> {
         match (effect, action) {
             (Effect::MoveKnight { from, .. }, Action::Pick { value }) => {
                 let displaced = self.move_knight(player, from, value)?;
@@ -443,7 +444,7 @@ impl Game {
                 self.record(
                     Some(knight.player),
                     "knight",
-                    format!("{}重新安置了骑士", self.players[knight.player].name),
+                    crate::text!("{0}重新安置了骑士", self.player_name(knight.player)),
                     Some(Target::Vertex(value)),
                 );
             }
@@ -470,7 +471,7 @@ impl Game {
                 }
             }
             Effect::Displace { knight, from, .. } => {
-                prompt.title = format!("重新安置{}的骑士", self.players[knight.player].name);
+                prompt.title = crate::text!("重新安置{0}的骑士", self.player_name(knight.player));
                 if active {
                     prompt.choices = self
                         .relocation_sites(knight, *from)

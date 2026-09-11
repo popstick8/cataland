@@ -52,7 +52,7 @@ impl Game {
                 "award",
                 road.map_or_else(
                     || "最长道路暂时无人持有".into(),
-                    |player| format!("{}获得最长道路", self.players[player].name),
+                    |player| crate::text!("{0}获得最长道路", self.player_name(player)),
                 ),
                 None,
             );
@@ -68,7 +68,7 @@ impl Game {
                     "award",
                     army.map_or_else(
                         || "最大军队暂时无人持有".into(),
-                        |player| format!("{}获得最大军队", self.players[player].name),
+                        |player| crate::text!("{0}获得最大军队", self.player_name(player)),
                     ),
                     None,
                 );

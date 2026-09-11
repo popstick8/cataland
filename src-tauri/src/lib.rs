@@ -4,6 +4,7 @@ mod network;
 mod preferences;
 mod storage;
 
+use cataland_core::Text;
 use tauri::Manager;
 
 pub fn run() {
@@ -16,7 +17,7 @@ pub fn run() {
                     desktop
                         .state
                         .lock()
-                        .map_err(|error| error.to_string())?
+                        .map_err(|error| Text::from(error.to_string()))?
                         .view
                         .preferences
                         .scale,

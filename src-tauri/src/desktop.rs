@@ -5,7 +5,7 @@ use std::{
 };
 
 use cataland_core::{
-    ClientView, Connection, Identity, Request, RoomAction, RoomInfo, RoomSettings, RoomView,
+    ClientView, Connection, Identity, Request, RoomAction, RoomInfo, RoomSettings, RoomView, Text,
     room::Room,
 };
 use mdns_sd::ServiceDaemon;
@@ -81,14 +81,17 @@ impl Desktop {
         })
     }
 
-    fn save_identity(&self, identity: &Identity) -> Result<(), String> {
+    fn save_identity(&self, identity: &Identity) -> Result<(), Text> {
         storage::write(&self.directory.join("identity.json"), identity)
     }
 }
 
-pub fn receive(app: &AppHandle, cancel: &CancellationToken, room: RoomView) -> Result<(), String> {
+pub fn receive(app: &AppHandle, cancel: &CancellationToken, room: RoomView) -> Result<(), Text> {
     let desktop = app.state::<Desktop>();
-    let mut state = desktop.state.lock().map_err(|e| e.to_string())?;
+    let mut state = desktop
+        .state
+        .lock()
+        .map_err(|e| Text::from(e.to_string()))?;
     if cancel.is_cancelled() {
         return Ok(());
     }
@@ -118,14 +121,19 @@ pub fn receive(app: &AppHandle, cancel: &CancellationToken, room: RoomView) -> R
     }
     state.view.room = Some(room);
     state.view.connection = Connection::Connected;
-    app.emit("session", &state.view).map_err(|e| e.to_string())
+    app.emit("session", &state.view)
+        .map_err(|e| Text::from(e.to_string()))
 }
 
-pub fn notice(app: &AppHandle, cancel: &CancellationToken, message: String) -> Result<(), String> {
+pub fn notice(app: &AppHandle, cancel: &CancellationToken, message: Text) -> Result<(), Text> {
     let desktop = app.state::<Desktop>();
-    let _state = desktop.state.lock().map_err(|e| e.to_string())?;
+    let _state = desktop
+        .state
+        .lock()
+        .map_err(|e| Text::from(e.to_string()))?;
     if !cancel.is_cancelled() {
-        app.emit("notice", message).map_err(|e| e.to_string())?;
+        app.emit("notice", message)
+            .map_err(|e| Text::from(e.to_string()))?;
     }
     Ok(())
 }
@@ -133,27 +141,31 @@ pub fn notice(app: &AppHandle, cancel: &CancellationToken, message: String) -> R
 pub fn disconnected(
     app: &AppHandle,
     cancel: &CancellationToken,
-    error: Option<String>,
-) -> Result<(), String> {
+    error: Option<Text>,
+) -> Result<(), Text> {
     let desktop = app.state::<Desktop>();
-    let mut state = desktop.state.lock().map_err(|e| e.to_string())?;
+    let mut state = desktop
+        .state
+        .lock()
+        .map_err(|e| Text::from(e.to_string()))?;
     if !cancel.is_cancelled() {
         state.view.connection = Connection::Disconnected;
         app.emit("session", &state.view)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| Text::from(e.to_string()))?;
         if let Some(message) = error {
-            app.emit("notice", message).map_err(|e| e.to_string())?;
+            app.emit("notice", message)
+                .map_err(|e| Text::from(e.to_string()))?;
         }
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn session(desktop: State<'_, Desktop>) -> Result<ClientView, String> {
+pub fn session(desktop: State<'_, Desktop>) -> Result<ClientView, Text> {
     Ok(desktop
         .state
         .lock()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| Text::from(e.to_string()))?
         .view
         .clone())
 }
@@ -165,11 +177,11 @@ pub async fn host(
     color: usize,
     app: AppHandle,
     desktop: State<'_, Desktop>,
-) -> Result<(), String> {
+) -> Result<(), Text> {
     let token = desktop
         .state
         .lock()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| Text::from(e.to_string()))?
         .view
         .identity
         .token
@@ -184,7 +196,7 @@ pub async fn host(
 }
 
 #[tauri::command]
-pub async fn resume(id: String, app: AppHandle, desktop: State<'_, Desktop>) -> Result<(), String> {
+pub async fn resume(id: String, app: AppHandle, desktop: State<'_, Desktop>) -> Result<(), Text> {
     let path = storage::game_path(&desktop.directory, &id)?;
     let mut room = storage::read::<Room>(&path)?.ok_or("找不到这份存档")?;
     for member in &mut room.members {
@@ -197,14 +209,17 @@ pub async fn resume(id: String, app: AppHandle, desktop: State<'_, Desktop>) -> 
     open_room(room, app, &desktop)
 }
 
-fn open_room(room: Room, app: AppHandle, desktop: &Desktop) -> Result<(), String> {
+fn open_room(room: Room, app: AppHandle, desktop: &Desktop) -> Result<(), Text> {
     let identity = room
         .members
         .first()
         .ok_or("房间中缺少房主席位")?
         .identity
         .clone();
-    let mut state = desktop.state.lock().map_err(|e| e.to_string())?;
+    let mut state = desktop
+        .state
+        .lock()
+        .map_err(|e| Text::from(e.to_string()))?;
     desktop.save_identity(&identity)?;
     let room_id = room.id.clone();
     let host = Host::start(room, desktop.daemon.clone(), &desktop.directory)?;
@@ -219,7 +234,7 @@ fn open_room(room: Room, app: AppHandle, desktop: &Desktop) -> Result<(), String
     let mut changes = host.changes.subscribe();
     state.view.room = Some(host.view(&identity.token)?);
     app.emit("session", &state.view)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| Text::from(e.to_string()))?;
     tauri::async_runtime::spawn(async move {
         loop {
             tokio::select! {
@@ -242,8 +257,11 @@ pub fn join(
     color: usize,
     app: AppHandle,
     desktop: State<'_, Desktop>,
-) -> Result<(), String> {
-    let mut state = desktop.state.lock().map_err(|e| e.to_string())?;
+) -> Result<(), Text> {
+    let mut state = desktop
+        .state
+        .lock()
+        .map_err(|e| Text::from(e.to_string()))?;
     let identity = Identity {
         token: state.view.identity.token.clone(),
         name: name.trim().into(),
@@ -277,14 +295,17 @@ pub fn join(
     state.view.connection = Connection::Connecting;
     state.view.addresses = addresses.clone();
     app.emit("session", &state.view)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| Text::from(e.to_string()))?;
     tauri::async_runtime::spawn(network::guest(app, addresses, identity, receiver, cancel));
     Ok(())
 }
 
 #[tauri::command]
-pub fn room_action(action: RoomAction, desktop: State<'_, Desktop>) -> Result<(), String> {
-    let state = desktop.state.lock().map_err(|e| e.to_string())?;
+pub fn room_action(action: RoomAction, desktop: State<'_, Desktop>) -> Result<(), Text> {
+    let state = desktop
+        .state
+        .lock()
+        .map_err(|e| Text::from(e.to_string()))?;
     if state.view.connection != Connection::Connected {
         return Err("房间连接尚未恢复".into());
     }
@@ -297,12 +318,16 @@ pub fn room_action(action: RoomAction, desktop: State<'_, Desktop>) -> Result<()
 }
 
 #[tauri::command]
-pub fn leave(app: AppHandle, desktop: State<'_, Desktop>) -> Result<(), String> {
-    let mut state = desktop.state.lock().map_err(|e| e.to_string())?;
+pub fn leave(app: AppHandle, desktop: State<'_, Desktop>) -> Result<(), Text> {
+    let mut state = desktop
+        .state
+        .lock()
+        .map_err(|e| Text::from(e.to_string()))?;
     state.link = None;
     state.view.room = None;
     state.view.connection = Connection::Home;
     state.view.addresses.clear();
     state.view.saves = storage::games(&desktop.directory)?;
-    app.emit("session", &state.view).map_err(|e| e.to_string())
+    app.emit("session", &state.view)
+        .map_err(|e| Text::from(e.to_string()))
 }
