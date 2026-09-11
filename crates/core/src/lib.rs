@@ -1,3 +1,5 @@
+pub mod room;
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -99,4 +101,11 @@ pub enum Request {
 pub enum Response {
     State { room: RoomView },
     Error { message: String },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientView {
+    pub identity: Identity,
+    pub room: Option<RoomView>,
 }

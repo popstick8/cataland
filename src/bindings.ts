@@ -2,6 +2,8 @@
 
 export type Chat = { name: string; text: string; time: number };
 
+export type ClientView = { identity: Identity; room: RoomView | null };
+
 export type Identity = { token: string; name: string; color: number };
 
 export type Mode = "base" | "cities";

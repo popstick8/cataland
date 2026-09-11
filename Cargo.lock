@@ -276,8 +276,12 @@ dependencies = [
 name = "cataland"
 version = "1.0.0"
 dependencies = [
+ "cataland-core",
+ "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
+ "uuid",
 ]
 
 [[package]]
