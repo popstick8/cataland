@@ -478,3 +478,9 @@
 		padding: 10px;
 	}
 }
+
+.piece-motion {
+	position: absolute;
+	pointer-events: none;
+	transform-origin: 50% 80%;
+}

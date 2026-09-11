@@ -117,6 +117,7 @@ export type GameEvent = {
 	kind: string;
 	text: Text;
 	target: Target | null;
+	origin: Target | null;
 };
 
 export type GameView = {

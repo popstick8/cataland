@@ -231,6 +231,7 @@ pub struct GameEvent {
     pub kind: String,
     pub text: Text,
     pub target: Option<Target>,
+    pub origin: Option<Target>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -592,7 +593,8 @@ impl Game {
         kind: &str,
         text: Text,
         target: Option<Target>,
-    ) {
+    ) -> &mut GameEvent {
+        let index = self.events.len();
         self.events.push(Event {
             message: GameEvent {
                 seq: self.events.len() as u64 + 1,
@@ -600,9 +602,11 @@ impl Game {
                 kind: kind.into(),
                 text,
                 target,
+                origin: None,
             },
             audience: Vec::new(),
         });
+        &mut self.events[index].message
     }
 
     pub fn take_bank(&mut self, player: usize, resource: Resource, count: u16) -> u16 {
@@ -996,6 +1000,7 @@ impl Game {
                 kind: "private".into(),
                 text,
                 target: None,
+                origin: None,
             },
             audience,
         });

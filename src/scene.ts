@@ -3,12 +3,13 @@ import {
 	Assets,
 	Container,
 	Graphics,
+	Rectangle,
 	Sprite,
 	type Spritesheet,
 	Text,
 } from "pixi.js";
 import type { Action, Board, GameView, Target, Terrain } from "./bindings";
-import { createCamera } from "./camera";
+import { createCamera, type Point } from "./camera";
 import type { Translate } from "./locale";
 import { colors } from "./palette";
 
@@ -229,6 +230,65 @@ export async function createScene(
 			paint();
 		},
 	);
+	const motions = new Set<() => void>();
+	let previous: GameView | undefined;
+	let sequence = initial.events.at(-1)?.seq ?? 0;
+	let pieceState = "";
+	const animatePiece = (shape: Container, strength: number, from?: Point) => {
+		if (strength === 0) return;
+		const bounds = shape.getLocalBounds();
+		const frame = new Rectangle(
+			Math.floor(bounds.minX) - 2,
+			Math.floor(bounds.minY) - 2,
+			Math.ceil(bounds.maxX) - Math.floor(bounds.minX) + 4,
+			Math.ceil(bounds.maxY) - Math.floor(bounds.minY) + 4,
+		);
+		const snapshot = app.renderer.extract.canvas({
+			target: shape,
+			frame,
+			resolution: app.renderer.resolution,
+			antialias: true,
+		}) as HTMLCanvasElement;
+		snapshot.className = "piece-motion";
+		snapshot.ariaHidden = "true";
+		snapshot.style.left = `${world.x + shape.x + frame.x}px`;
+		snapshot.style.top = `${world.y + shape.y + frame.y}px`;
+		snapshot.style.width = `${frame.width}px`;
+		snapshot.style.height = `${frame.height}px`;
+		surface.append(snapshot);
+		shape.visible = false;
+		const frames: Keyframe[] = from
+			? [
+					{
+						transform: `translate(${from.x - shape.x}px, ${from.y - shape.y}px)`,
+					},
+					{ transform: "translate(0, 0)" },
+				]
+			: [
+					{
+						transform: `translateY(${-10 * strength}px) scale(${1 - 0.18 * strength})`,
+						opacity: 0,
+					},
+					{ transform: "translateY(0) scale(1.025)", opacity: 1, offset: 0.75 },
+					{ transform: "none", opacity: 1 },
+				];
+		const animation = snapshot.animate(frames, {
+			duration: (from ? 220 : 150) + 130 * strength,
+			easing: "cubic-bezier(0.2, 0.7, 0.2, 1)",
+		});
+		const cancel = () => {
+			animation.onfinish = null;
+			animation.cancel();
+			snapshot.remove();
+			if (!shape.destroyed) shape.visible = true;
+			motions.delete(cancel);
+		};
+		motions.add(cancel);
+		animation.onfinish = () => {
+			cancel();
+			paint();
+		};
+	};
 	const update = (
 		view: GameView,
 		nextOptions: BoardOption[],
@@ -241,8 +301,6 @@ export async function createScene(
 		app.canvas.setAttribute("aria-label", t("游戏棋盘"));
 		for (const { label, key, suffix } of labels) label.text = t(key) + suffix;
 		act = onAction;
-		for (const child of pieces.removeChildren())
-			child.destroy({ children: true });
 		for (const child of hints.removeChildren())
 			child.destroy({ children: true });
 		view.board.hexes.forEach((hex, id) => {
@@ -259,137 +317,214 @@ export async function createScene(
 					.circle(hex.x * 80 + (i - (count - 1) / 2) * 5, hex.y * 66 + 13, 1.5)
 					.fill(0x89684e);
 		});
-		view.roads.forEach((player, id) => {
-			if (player === null) return;
-			const edge = board.edges[id];
-			if (!edge) throw new Error("道路对应的棋盘边不存在");
-			const a = coordinates(board, edge.vertices[0]);
-			const b = coordinates(board, edge.vertices[1]);
-			const line = new Graphics()
-				.moveTo(a.x, a.y + 3)
-				.lineTo(b.x, b.y + 3)
-				.stroke({ color: 0x3c4a36, alpha: 0.3, width: 12, cap: "round" })
-				.moveTo(a.x, a.y)
-				.lineTo(b.x, b.y)
-				.stroke({ color: 0xf1e5c3, width: 11, cap: "round" })
-				.moveTo(a.x, a.y)
-				.lineTo(b.x, b.y)
-				.stroke({ color: playerColor(view, player), width: 7, cap: "round" });
-			pieces.addChild(line);
-		});
-		view.buildings.forEach((building, id) => {
-			if (!building) return;
-			const point = coordinates(board, id);
-			const color = playerColor(view, building.player);
-			const city = building.kind === "city";
-			const shape = new Graphics()
-				.ellipse(0, 5, city ? 24 : 17, 9)
-				.fill({ color: 0x263e35, alpha: 0.24 });
-			if (view.cities?.walls.includes(id)) {
+		const recent = view.events.filter((event) => event.seq > sequence);
+		sequence = Math.max(sequence, view.events.at(-1)?.seq ?? 0);
+		const state = JSON.stringify([
+			view.roads,
+			view.buildings,
+			view.cities?.knights,
+			view.cities?.walls,
+			view.cities?.metropolises,
+			view.cities?.merchant,
+			view.robber,
+		]);
+		if (strength === 0) for (const cancel of motions) cancel();
+		if (state !== pieceState) {
+			pieceState = state;
+			for (const cancel of motions) cancel();
+			for (const child of pieces.removeChildren())
+				child.destroy({ children: true });
+			view.roads.forEach((player, id) => {
+				if (player === null) return;
+				const edge = board.edges[id];
+				if (!edge) throw new Error("道路对应的棋盘边不存在");
+				const a = coordinates(board, edge.vertices[0]);
+				const b = coordinates(board, edge.vertices[1]);
+				const line = new Graphics()
+					.moveTo(a.x, a.y + 3)
+					.lineTo(b.x, b.y + 3)
+					.stroke({ color: 0x3c4a36, alpha: 0.3, width: 12, cap: "round" })
+					.moveTo(a.x, a.y)
+					.lineTo(b.x, b.y)
+					.stroke({ color: 0xf1e5c3, width: 11, cap: "round" })
+					.moveTo(a.x, a.y)
+					.lineTo(b.x, b.y)
+					.stroke({ color: playerColor(view, player), width: 7, cap: "round" });
+				pieces.addChild(line);
+				if (previous && previous.roads[id] !== player)
+					animatePiece(line, strength);
+			});
+			view.buildings.forEach((building, id) => {
+				if (!building) return;
+				const point = coordinates(board, id);
+				const color = playerColor(view, building.player);
+				const city = building.kind === "city";
+				const shape = new Graphics()
+					.ellipse(0, 5, city ? 24 : 17, 9)
+					.fill({ color: 0x263e35, alpha: 0.24 });
+				if (view.cities?.walls.includes(id)) {
+					shape
+						.poly([-24, 3, -8, -8, 26, 4, 10, 17])
+						.fill(0x8d9890)
+						.stroke({ color: 0xe9e1c7, width: 2 });
+				}
 				shape
-					.poly([-24, 3, -8, -8, 26, 4, 10, 17])
-					.fill(0x8d9890)
-					.stroke({ color: 0xe9e1c7, width: 2 });
-			}
-			shape
-				.poly([-12, -12, 1, -5, 1, 8, -12, 1])
-				.fill(0xf7e8ba)
-				.poly([1, -5, 13, -12, 13, 1, 1, 8])
-				.fill(0xc6b990)
-				.poly([-15, -12, -2, -26, 15, -16, 1, -5])
-				.fill(color)
-				.stroke({ color: 0xfff1d4, width: 1.4 });
-			shape.rect(-7, -5, 4, 8).fill(0x53675c);
-			if (city)
-				shape
-					.poly([7, -28, 20, -23, 20, 1, 7, 7])
-					.fill(0xe8d6ad)
-					.poly([4, -29, 13, -41, 23, -26, 14, -22])
+					.poly([-12, -12, 1, -5, 1, 8, -12, 1])
+					.fill(0xf7e8ba)
+					.poly([1, -5, 13, -12, 13, 1, 1, 8])
+					.fill(0xc6b990)
+					.poly([-15, -12, -2, -26, 15, -16, 1, -5])
 					.fill(color)
-					.stroke({ color: 0xfff1d4, width: 1.2 })
-					.rect(12, -15, 4, 5)
-					.fill(0x53675c);
-			if (view.cities?.metropolises.includes(id)) {
-				shape
-					.poly([3, -45, 7, -39, 12, -49, 17, -39, 22, -45, 20, -33, 5, -33])
-					.fill(0xdabd66)
-					.stroke({ color: 0xffefb9, width: 1.5 });
+					.stroke({ color: 0xfff1d4, width: 1.4 });
+				shape.rect(-7, -5, 4, 8).fill(0x53675c);
+				if (city)
+					shape
+						.poly([7, -28, 20, -23, 20, 1, 7, 7])
+						.fill(0xe8d6ad)
+						.poly([4, -29, 13, -41, 23, -26, 14, -22])
+						.fill(color)
+						.stroke({ color: 0xfff1d4, width: 1.2 })
+						.rect(12, -15, 4, 5)
+						.fill(0x53675c);
+				if (view.cities?.metropolises.includes(id)) {
+					shape
+						.poly([3, -45, 7, -39, 12, -49, 17, -39, 22, -45, 20, -33, 5, -33])
+						.fill(0xdabd66)
+						.stroke({ color: 0xffefb9, width: 1.5 });
+				}
+				shape.position.set(point.x, point.y);
+				pieces.addChild(shape);
+				if (
+					previous &&
+					(JSON.stringify(previous.buildings[id]) !==
+						JSON.stringify(building) ||
+						previous.cities?.walls.includes(id) !==
+							view.cities?.walls.includes(id) ||
+						previous.cities?.metropolises.includes(id) !==
+							view.cities?.metropolises.includes(id))
+				)
+					animatePiece(shape, strength);
+			});
+			view.cities?.knights.forEach((knight, vertex) => {
+				if (!knight) return;
+				const point = coordinates(board, vertex);
+				const color = playerColor(view, knight.player);
+				const figure = new Container();
+				const base = new Graphics()
+					.ellipse(0, 5, 16, 7)
+					.fill({ color: 0x263e35, alpha: 0.25 });
+				base
+					.ellipse(0, 1, 14, 6)
+					.fill(color)
+					.stroke({ color: 0xf3e6c4, width: 2 });
+				const body = new Graphics()
+					.poly([-10, -3, -8, -21, 0, -27, 8, -21, 10, -3])
+					.fill(0xd5d9ce)
+					.poly([-8, -19, 0, -15, 8, -19, 6, -7, 0, -2, -6, -7])
+					.fill(color)
+					.roundRect(-7, -34, 14, 13, 5)
+					.fill(0xf1e9cd)
+					.moveTo(-7, -27)
+					.lineTo(7, -27)
+					.stroke({ color: 0x495859, width: 3 });
+				for (let i = 0; i < knight.level; i++)
+					body
+						.circle((i - (knight.level - 1) / 2) * 5, -10, 1.7)
+						.fill(0xffefba);
+				if (knight.active)
+					body.poly([-5, -34, -9, -43, 2, -40, 4, -34]).fill(color);
+				else {
+					body.rotation = -0.7;
+					body.position.set(4, 4);
+				}
+				figure.addChild(base, body);
+				figure.position.set(point.x, point.y);
+				pieces.addChild(figure);
+				if (previous) {
+					const move = recent.findLast(
+						(event) =>
+							event.kind === "knight" &&
+							event.target?.type === "vertex" &&
+							event.target.id === vertex &&
+							event.player === knight.player &&
+							event.origin?.type === "vertex",
+					);
+					if (move?.origin?.type === "vertex")
+						animatePiece(figure, strength, coordinates(board, move.origin.id));
+					else if (
+						JSON.stringify(previous.cities?.knights[vertex]) !==
+						JSON.stringify(knight)
+					)
+						animatePiece(figure, strength);
+				}
+			});
+			if (view.cities?.merchant) {
+				const merchant = view.cities.merchant;
+				const hex = board.hexes[merchant.hex];
+				if (hex) {
+					const trader = new Graphics()
+						.ellipse(0, 4, 13, 6)
+						.fill({ color: 0x203c37, alpha: 0.22 })
+						.roundRect(-9, -20, 18, 24, 5)
+						.fill(playerColor(view, merchant.player))
+						.circle(0, -24, 7)
+						.fill(0xf1d7a6)
+						.ellipse(0, -29, 13, 3)
+						.fill(0xb08d46)
+						.roundRect(-7, -36, 14, 7, 3)
+						.fill(0xd4b46a)
+						.roundRect(5, -11, 11, 13, 3)
+						.fill(0xa9794f);
+					trader.position.set(hex.x * 80 - 32, hex.y * 66 + 8);
+					pieces.addChild(trader);
+					if (
+						previous &&
+						JSON.stringify(previous.cities?.merchant) !==
+							JSON.stringify(merchant)
+					) {
+						const old = previous.cities?.merchant;
+						const from =
+							old && old.hex !== merchant.hex
+								? board.hexes[old.hex]
+								: undefined;
+						animatePiece(
+							trader,
+							strength,
+							from ? { x: from.x * 80 - 32, y: from.y * 66 + 8 } : undefined,
+						);
+					}
+				}
 			}
-			shape.position.set(point.x, point.y);
-			pieces.addChild(shape);
-		});
-		view.cities?.knights.forEach((knight, vertex) => {
-			if (!knight) return;
-			const point = coordinates(board, vertex);
-			const color = playerColor(view, knight.player);
-			const figure = new Container();
-			const base = new Graphics()
-				.ellipse(0, 5, 16, 7)
-				.fill({ color: 0x263e35, alpha: 0.25 });
-			base
-				.ellipse(0, 1, 14, 6)
-				.fill(color)
-				.stroke({ color: 0xf3e6c4, width: 2 });
-			const body = new Graphics()
-				.poly([-10, -3, -8, -21, 0, -27, 8, -21, 10, -3])
-				.fill(0xd5d9ce)
-				.poly([-8, -19, 0, -15, 8, -19, 6, -7, 0, -2, -6, -7])
-				.fill(color)
-				.roundRect(-7, -34, 14, 13, 5)
-				.fill(0xf1e9cd)
-				.moveTo(-7, -27)
-				.lineTo(7, -27)
-				.stroke({ color: 0x495859, width: 3 });
-			for (let i = 0; i < knight.level; i++)
-				body.circle((i - (knight.level - 1) / 2) * 5, -10, 1.7).fill(0xffefba);
-			if (knight.active)
-				body.poly([-5, -34, -9, -43, 2, -40, 4, -34]).fill(color);
-			else {
-				body.rotation = -0.7;
-				body.position.set(4, 4);
-			}
-			figure.addChild(base, body);
-			figure.position.set(point.x, point.y);
-			pieces.addChild(figure);
-		});
-		if (view.cities?.merchant) {
-			const merchant = view.cities.merchant;
-			const hex = board.hexes[merchant.hex];
-			if (hex) {
-				const trader = new Graphics()
-					.ellipse(0, 4, 13, 6)
-					.fill({ color: 0x203c37, alpha: 0.22 })
-					.roundRect(-9, -20, 18, 24, 5)
-					.fill(playerColor(view, merchant.player))
-					.circle(0, -24, 7)
-					.fill(0xf1d7a6)
-					.ellipse(0, -29, 13, 3)
-					.fill(0xb08d46)
-					.roundRect(-7, -36, 14, 7, 3)
-					.fill(0xd4b46a)
-					.roundRect(5, -11, 11, 13, 3)
-					.fill(0xa9794f);
-				trader.position.set(hex.x * 80 - 32, hex.y * 66 + 8);
-				pieces.addChild(trader);
+			if (view.robber !== null) {
+				const hex = board.hexes[view.robber];
+				if (hex) {
+					const thief = new Graphics()
+						.ellipse(0, 3, 13, 6)
+						.fill({ color: 0x203c37, alpha: 0.25 })
+						.roundRect(-9, -19, 18, 22, 6)
+						.fill(0x3a4b4c)
+						.circle(0, -23, 8)
+						.fill(0x293a3c)
+						.moveTo(-7, -13)
+						.lineTo(7, -13)
+						.stroke({ color: 0x81918a, width: 2 });
+					thief.position.set(hex.x * 80 + 33, hex.y * 66 + 6);
+					pieces.addChild(thief);
+					if (previous && previous.robber !== view.robber) {
+						const from =
+							previous.robber === null
+								? undefined
+								: board.hexes[previous.robber];
+						animatePiece(
+							thief,
+							strength,
+							from ? { x: from.x * 80 + 33, y: from.y * 66 + 6 } : undefined,
+						);
+					}
+				}
 			}
 		}
-		if (view.robber !== null) {
-			const hex = board.hexes[view.robber];
-			if (hex) {
-				const thief = new Graphics()
-					.ellipse(0, 3, 13, 6)
-					.fill({ color: 0x203c37, alpha: 0.25 })
-					.roundRect(-9, -19, 18, 22, 6)
-					.fill(0x3a4b4c)
-					.circle(0, -23, 8)
-					.fill(0x293a3c)
-					.moveTo(-7, -13)
-					.lineTo(7, -13)
-					.stroke({ color: 0x81918a, width: 2 });
-				thief.position.set(hex.x * 80 + 33, hex.y * 66 + 6);
-				pieces.addChild(thief);
-			}
-		}
+		previous = view;
 		for (const option of options) {
 			const target = option.target;
 			const hint = new Graphics();
@@ -431,6 +566,7 @@ export async function createScene(
 		fit: camera.fit,
 		zoom: camera.zoom,
 		destroy() {
+			for (const cancel of motions) cancel();
 			camera.destroy();
 			surface.remove();
 			app.destroy(true, { children: true });

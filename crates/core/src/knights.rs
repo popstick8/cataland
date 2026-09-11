@@ -241,19 +241,22 @@ impl Game {
             "knight",
             crate::text!("{0}移动了骑士", self.player_name(player)),
             Some(Target::Vertex(to)),
-        );
+        )
+        .origin = Some(Target::Vertex(from));
         Ok(displaced)
     }
 
     pub fn queue_displacement(&mut self, knight: Knight, from: usize) {
         let locations = self.relocation_sites(&knight, from);
         match locations.as_slice() {
-            [] => self.record(
-                Some(knight.player),
-                "knight",
-                crate::text!("{0}的骑士返回供应", self.player_name(knight.player)),
-                Some(Target::Vertex(from)),
-            ),
+            [] => {
+                self.record(
+                    Some(knight.player),
+                    "knight",
+                    crate::text!("{0}的骑士返回供应", self.player_name(knight.player)),
+                    Some(Target::Vertex(from)),
+                );
+            }
             [vertex] => {
                 if let Some(cities) = &mut self.cities {
                     cities.knights[*vertex] = Some(knight);
@@ -263,7 +266,8 @@ impl Game {
                     "knight",
                     crate::text!("{0}重新安置了骑士", self.player_name(knight.player)),
                     Some(Target::Vertex(*vertex)),
-                );
+                )
+                .origin = Some(Target::Vertex(from));
             }
             _ => self.pending.push_front(Effect::Displace {
                 player: if knight.player < self.humans {
@@ -446,7 +450,8 @@ impl Game {
                     "knight",
                     crate::text!("{0}重新安置了骑士", self.player_name(knight.player)),
                     Some(Target::Vertex(value)),
-                );
+                )
+                .origin = Some(Target::Vertex(from));
             }
             _ => return Err("请完成骑士的位置选择".into()),
         }
