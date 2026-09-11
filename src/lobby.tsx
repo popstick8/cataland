@@ -10,6 +10,7 @@ import {
 import { useState } from "react";
 import island from "../src-tauri/icons/icon.png";
 import type { ClientView, RoomSettings, RoomView } from "./bindings";
+import { RoomBrowser } from "./rooms";
 import type { Session } from "./session";
 
 export const colors = [
@@ -164,6 +165,7 @@ export function Home({
 					创建房间 <Compass size={18} />
 				</button>
 			</form>
+			<RoomBrowser view={view} session={session} name={name} color={color} />
 		</main>
 	);
 }
@@ -284,6 +286,12 @@ export function Lobby({ room, session }: { room: RoomView; session: Session }) {
 								<span>留给下一位旅人</span>
 							</div>
 						))}
+					<div className="room-addresses">
+						主机地址
+						{session.view?.addresses.map((address) => (
+							<code key={address}>{address}</code>
+						))}
+					</div>
 					{room.spectators.length > 0 && (
 						<p className="muted">观战：{room.spectators.join("、")}</p>
 					)}

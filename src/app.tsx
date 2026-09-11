@@ -1,5 +1,6 @@
 import { Compass, X } from "lucide-react";
 import { Home, Lobby } from "./lobby";
+import { ConnectionNotice } from "./rooms";
 import { useSession } from "./session";
 import "./style.css";
 
@@ -14,6 +15,9 @@ export function App() {
 				</div>
 				<span className="app-caption">群岛之约</span>
 			</header>
+			{session.view && (
+				<ConnectionNotice view={session.view} session={session} />
+			)}
 			{session.error && (
 				<div className="error" role="alert">
 					<span>{session.error}</span>
