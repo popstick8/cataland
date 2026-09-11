@@ -107,6 +107,8 @@ export type ClientView = {
 
 export type Connection = "home" | "connecting" | "connected" | "disconnected";
 
+export type Cursor = { room: string; events: number; chat: number };
+
 export type Edge = { vertices: [number, number]; hexes: Array<number> };
 
 export type EventDie = "barbarians" | "trade" | "politics" | "science";
@@ -261,7 +263,7 @@ export type Prompt = {
 };
 
 export type Request =
-	| { type: "join"; identity: Identity }
+	| { type: "join"; identity: Identity; cursor: Cursor | null }
 	| { type: "action"; action: RoomAction };
 
 export type Resource =
@@ -276,6 +278,7 @@ export type Resource =
 
 export type Response =
 	| { type: "state"; room: RoomView }
+	| { type: "chat"; room: string; offset: number; messages: Array<Chat> }
 	| { type: "error"; message: Text };
 
 export type RoomAction =

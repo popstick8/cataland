@@ -175,15 +175,12 @@ impl Room {
                     text: text.into(),
                     time,
                 });
-                if self.chat.len() > 200 {
-                    self.chat.remove(0);
-                }
             }
         }
         Ok(())
     }
 
-    pub fn view(&self, token: &str) -> RoomView {
+    pub fn view(&self, token: &str, after: u64) -> RoomView {
         let viewer = self.members.iter().position(|m| m.identity.token == token);
         RoomView {
             id: self.id.clone(),
@@ -211,7 +208,7 @@ impl Room {
             game: self
                 .game
                 .as_ref()
-                .map(|game| game.view(viewer.and_then(|i| self.members[i].player))),
+                .map(|game| game.view(viewer.and_then(|i| self.members[i].player), after)),
         }
     }
 }

@@ -93,7 +93,7 @@ pub struct GameView {
 }
 
 impl Game {
-    pub fn view(&self, viewer: Option<usize>) -> GameView {
+    pub fn view(&self, viewer: Option<usize>, after: u64) -> GameView {
         let viewer = viewer.filter(|&player| player < self.humans);
         GameView {
             cities: self.city_view(),
@@ -158,6 +158,7 @@ impl Game {
             events: self
                 .events
                 .iter()
+                .skip(after as usize)
                 .filter(|event| {
                     event.audience.is_empty()
                         || viewer.is_some_and(|player| event.audience.contains(&player))

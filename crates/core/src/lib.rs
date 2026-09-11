@@ -12,7 +12,9 @@ pub mod progress;
 pub mod progress_actions;
 pub mod progress_choices;
 pub mod room;
+pub mod sync;
 pub mod text;
+pub use sync::{Cursor, Request, Response};
 pub mod view;
 pub use text::Text;
 
@@ -106,20 +108,6 @@ pub struct RoomInfo {
     pub capacity: usize,
     pub mode: Mode,
     pub started: bool,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-#[serde(tag = "type", rename_all = "camelCase")]
-pub enum Request {
-    Join { identity: Identity },
-    Action { action: RoomAction },
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-#[serde(tag = "type", rename_all = "camelCase")]
-pub enum Response {
-    State { room: Box<RoomView> },
-    Error { message: Text },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]

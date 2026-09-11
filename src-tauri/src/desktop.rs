@@ -5,8 +5,8 @@ use std::{
 };
 
 use cataland_core::{
-    ClientView, Connection, Identity, Request, RoomAction, RoomInfo, RoomSettings, RoomView, Text,
-    room::Room,
+    ClientView, Connection, Cursor, Identity, Request, Response, RoomAction, RoomInfo,
+    RoomSettings, RoomView, Text, room::Room,
 };
 use mdns_sd::ServiceDaemon;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -86,7 +86,11 @@ impl Desktop {
     }
 }
 
-pub fn receive(app: &AppHandle, cancel: &CancellationToken, room: RoomView) -> Result<(), Text> {
+pub fn receive(
+    app: &AppHandle,
+    cancel: &CancellationToken,
+    response: Response,
+) -> Result<(), Text> {
     let desktop = app.state::<Desktop>();
     let mut state = desktop
         .state
@@ -95,6 +99,18 @@ pub fn receive(app: &AppHandle, cancel: &CancellationToken, room: RoomView) -> R
     if cancel.is_cancelled() {
         return Ok(());
     }
+    if matches!(response, Response::Chat { .. }) {
+        response.clone().apply(&mut state.view.room)?;
+        return app
+            .emit("chat", &response)
+            .map_err(|e| Text::from(e.to_string()));
+    }
+    if let Err(message) = response.apply(&mut state.view.room) {
+        return app
+            .emit("notice", message)
+            .map_err(|e| Text::from(e.to_string()));
+    }
+    let room = state.view.room.as_ref().ok_or("请先进入房间")?.clone();
     if let Some(you) = room.you.and_then(|i| room.seats.get(i))
         && (you.name != state.view.identity.name || you.color != state.view.identity.color)
     {
@@ -123,19 +139,6 @@ pub fn receive(app: &AppHandle, cancel: &CancellationToken, room: RoomView) -> R
     state.view.connection = Connection::Connected;
     app.emit("session", &state.view)
         .map_err(|e| Text::from(e.to_string()))
-}
-
-pub fn notice(app: &AppHandle, cancel: &CancellationToken, message: Text) -> Result<(), Text> {
-    let desktop = app.state::<Desktop>();
-    let _state = desktop
-        .state
-        .lock()
-        .map_err(|e| Text::from(e.to_string()))?;
-    if !cancel.is_cancelled() {
-        app.emit("notice", message)
-            .map_err(|e| Text::from(e.to_string()))?;
-    }
-    Ok(())
 }
 
 pub fn disconnected(
@@ -232,7 +235,12 @@ fn open_room(room: Room, app: AppHandle, desktop: &Desktop) -> Result<(), Text> 
     state.view.addresses = vec![format!("cataland-{room_id}.local.:{}", host.port)];
     state.view.connection = Connection::Connected;
     let mut changes = host.changes.subscribe();
-    state.view.room = Some(host.view(&identity.token)?);
+    let mut cursor = Cursor::default();
+    let mut revision = None;
+    state.view.room = None;
+    for response in host.updates(&identity.token, &mut cursor, &mut revision)? {
+        response.apply(&mut state.view.room)?;
+    }
     app.emit("session", &state.view)
         .map_err(|e| Text::from(e.to_string()))?;
     tauri::async_runtime::spawn(async move {
@@ -241,7 +249,11 @@ fn open_room(room: Room, app: AppHandle, desktop: &Desktop) -> Result<(), Text> 
                 () = host.cancel.cancelled() => break,
                 changed = changes.changed() => {
                     if changed.is_err() { break; }
-                    let result = host.view(&identity.token).and_then(|room| receive(&app, &host.cancel, room));
+                    changes.borrow_and_update();
+                    let result = host.updates(&identity.token, &mut cursor, &mut revision).and_then(|updates| {
+                        for response in updates { receive(&app, &host.cancel, response)?; }
+                        Ok(())
+                    });
                     if let Err(error) = result { eprintln!("Local room state: {error}"); }
                 }
             }
@@ -296,7 +308,10 @@ pub fn join(
     state.view.addresses = addresses.clone();
     app.emit("session", &state.view)
         .map_err(|e| Text::from(e.to_string()))?;
-    tauri::async_runtime::spawn(network::guest(app, addresses, identity, receiver, cancel));
+    let cursor = state.view.room.as_ref().map(RoomView::cursor);
+    tauri::async_runtime::spawn(network::guest(
+        app, addresses, identity, cursor, receiver, cancel,
+    ));
     Ok(())
 }
 

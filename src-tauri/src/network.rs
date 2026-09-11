@@ -6,7 +6,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use cataland_core::{Identity, Request, Response, RoomAction, RoomView, Text, room::Room};
+use cataland_core::{Cursor, Identity, Request, Response, RoomAction, Text, room::Room};
 use futures_util::{SinkExt, StreamExt};
 use mdns_sd::ServiceDaemon;
 use socket2::{Domain, Protocol, Socket, Type};
@@ -24,6 +24,7 @@ mod tests;
 
 struct Hosted {
     room: Room,
+    revision: u64,
     connections: HashMap<String, usize>,
 }
 
@@ -66,7 +67,11 @@ impl Host {
         let fullname = discovery::advertise(&daemon, &room, port)?;
         let connections = HashMap::from([(room.members[0].identity.token.clone(), 1)]);
         let host = Arc::new(Self {
-            data: Mutex::new(Hosted { room, connections }),
+            data: Mutex::new(Hosted {
+                room,
+                connections,
+                revision: 0,
+            }),
             changes: watch::channel(()).0,
             cancel: CancellationToken::new(),
             port,
@@ -124,22 +129,61 @@ impl Host {
         }
     }
 
-    pub fn view(&self, token: &str) -> Result<RoomView, Text> {
+    #[cfg(test)]
+    pub fn view(&self, token: &str) -> Result<cataland_core::RoomView, Text> {
         Ok(self
             .data
             .lock()
             .map_err(|e| Text::from(e.to_string()))?
             .room
-            .view(token))
+            .view(token, 0))
+    }
+
+    pub fn updates(
+        &self,
+        token: &str,
+        cursor: &mut Cursor,
+        revision: &mut Option<u64>,
+    ) -> Result<Vec<Response>, Text> {
+        let data = self.data.lock().map_err(|e| Text::from(e.to_string()))?;
+        if cursor.room != data.room.id {
+            *cursor = Cursor {
+                room: data.room.id.clone(),
+                ..Cursor::default()
+            };
+        }
+        let mut updates = Vec::new();
+        if *revision != Some(data.revision) {
+            let mut room = data.room.view(token, cursor.events);
+            room.chat.clear();
+            cursor.events = data
+                .room
+                .game
+                .as_ref()
+                .map_or(0, |game| game.events.len() as u64);
+            updates.push(Response::State {
+                room: Box::new(room),
+            });
+            *revision = Some(data.revision);
+        }
+        if cursor.chat < data.room.chat.len() {
+            updates.push(Response::Chat {
+                room: data.room.id.clone(),
+                offset: cursor.chat,
+                messages: data.room.chat[cursor.chat..].to_vec(),
+            });
+            cursor.chat = data.room.chat.len();
+        }
+        Ok(updates)
     }
 
     pub fn apply(&self, token: &str, action: RoomAction) -> Result<(), Text> {
+        let changed = !matches!(action, RoomAction::Chat { .. });
         let announce = matches!(action, RoomAction::Configure { .. } | RoomAction::Start);
         let time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|e| Text::from(e.to_string()))?
-            .as_secs_f64()
-            * 1000.0;
+            .as_millis() as f64;
         let mut data = self.data.lock().map_err(|e| Text::from(e.to_string()))?;
         if self.cancel.is_cancelled() {
             return Err("房间已经关闭".into());
@@ -148,6 +192,7 @@ impl Host {
         room.apply(token, action, time)?;
         storage::write(&self.save, &room)?;
         data.room = room;
+        data.revision += u64::from(changed);
         drop(data);
         self.changes.send_replace(());
         if announce {
@@ -167,6 +212,7 @@ impl Host {
         storage::write(&self.save, &room)?;
         data.room = room;
         *data.connections.entry(token).or_default() += 1;
+        data.revision += 1;
         drop(data);
         self.announce();
         self.changes.send_replace(());
@@ -183,6 +229,7 @@ impl Host {
             if *count == 0 {
                 data.connections.remove(token);
                 data.room.disconnect(token);
+                data.revision += 1;
             }
         }
         self.changes.send_replace(());
@@ -198,7 +245,7 @@ impl Host {
             () = self.cancel.cancelled() => return Ok(()),
             message = socket.next() => message.ok_or("连接已关闭")?.map_err(|e| Text::from(e.to_string()))?,
         };
-        let Request::Join { identity } =
+        let Request::Join { identity, cursor } =
             serde_json::from_str(first.to_text().map_err(|e| Text::from(e.to_string()))?)
                 .map_err(|e| Text::from(e.to_string()))?
         else {
@@ -210,7 +257,14 @@ impl Host {
             send(&mut socket, &Response::Error { message }).await?;
             return Ok(());
         }
-        let result = self.exchange(&mut socket, &token, &mut changes).await;
+        let result = self
+            .exchange(
+                &mut socket,
+                &token,
+                &mut changes,
+                cursor.unwrap_or_default(),
+            )
+            .await;
         self.detach(&token)?;
         result
     }
@@ -220,22 +274,22 @@ impl Host {
         socket: &mut WebSocketStream<TcpStream>,
         token: &str,
         changes: &mut watch::Receiver<()>,
+        mut cursor: Cursor,
     ) -> Result<(), Text> {
+        let mut revision = None;
         changes.borrow_and_update();
-        send(
-            socket,
-            &Response::State {
-                room: Box::new(self.view(token)?),
-            },
-        )
-        .await?;
+        for response in self.updates(token, &mut cursor, &mut revision)? {
+            send(socket, &response).await?;
+        }
         loop {
             tokio::select! {
                 () = self.cancel.cancelled() => return Ok(()),
                 changed = changes.changed() => {
                     changed.map_err(|e| Text::from(e.to_string()))?;
-                    let response = Response::State { room: Box::new(self.view(token)?) };
-                    send(socket, &response).await?;
+                    changes.borrow_and_update();
+                    for response in self.updates(token, &mut cursor, &mut revision)? {
+                        send(socket, &response).await?;
+                    }
                 }
                 incoming = socket.next() => {
                     let Some(message) = incoming else { return Ok(()) };
@@ -277,6 +331,7 @@ pub async fn guest(
     app: tauri::AppHandle,
     addresses: Vec<String>,
     identity: Identity,
+    cursor: Option<Cursor>,
     mut outgoing: mpsc::UnboundedReceiver<Request>,
     cancel: CancellationToken,
 ) {
@@ -285,7 +340,7 @@ pub async fn guest(
             () = cancel.cancelled() => return Ok(()),
             result = connect(&addresses) => result?,
         };
-        socket.send(Message::text(serde_json::to_string(&Request::Join { identity }).map_err(|e| Text::from(e.to_string()))?)).await.map_err(|e| Text::from(e.to_string()))?;
+        socket.send(Message::text(serde_json::to_string(&Request::Join { identity, cursor }).map_err(|e| Text::from(e.to_string()))?)).await.map_err(|e| Text::from(e.to_string()))?;
         loop {
             tokio::select! {
                 () = cancel.cancelled() => return Ok(()),
@@ -296,10 +351,7 @@ pub async fn guest(
                 incoming = socket.next() => {
                     let Some(message) = incoming else { return Err("房主已关闭连接".into()) };
                     match message.map_err(|e| Text::from(e.to_string()))? {
-                        Message::Text(text) => match serde_json::from_str::<Response>(&text).map_err(|e| Text::from(e.to_string()))? {
-                            Response::State { room } => desktop::receive(&app, &cancel, *room)?,
-                            Response::Error { message } => desktop::notice(&app, &cancel, message)?,
-                        },
+                        Message::Text(text) => desktop::receive(&app, &cancel, serde_json::from_str::<Response>(&text).map_err(|e| Text::from(e.to_string()))?)?,
                         Message::Close(_) => return Err("房主已关闭连接".into()),
                         Message::Ping(_) => socket.flush().await.map_err(|e| Text::from(e.to_string()))?,
                         _ => {}

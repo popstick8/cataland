@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
-import type { ClientView, RoomAction, Text } from "./bindings";
+import type { ClientView, Response, RoomAction, Text } from "./bindings";
 import { errorText } from "./locale";
 
 export function useSession() {
@@ -33,6 +33,23 @@ export function useSession() {
 			listen<ClientView>("session", ({ payload }) => {
 				received = true;
 				if (active) setView(payload);
+			}),
+			listen<Extract<Response, { type: "chat" }>>("chat", ({ payload }) => {
+				if (active)
+					setView((view) =>
+						view?.room?.id === payload.room
+							? {
+									...view,
+									room: {
+										...view.room,
+										chat: [
+											...view.room.chat.slice(0, payload.offset),
+											...payload.messages,
+										],
+									},
+								}
+							: view,
+					);
 			}),
 			listen<Text>("notice", ({ payload }) => {
 				if (active) setError(payload);
