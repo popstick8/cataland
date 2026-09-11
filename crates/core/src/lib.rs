@@ -77,7 +77,7 @@ pub struct Identity {
     pub color: usize,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RoomInfo {
     pub id: String,
@@ -111,6 +111,8 @@ pub struct ClientView {
     pub connection: Connection,
     pub addresses: Vec<String>,
     pub nearby: Vec<RoomInfo>,
+    pub recent: Vec<RoomInfo>,
+    pub saves: Vec<SavedGame>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -120,4 +122,14 @@ pub enum Connection {
     Connecting,
     Connected,
     Disconnected,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedGame {
+    pub id: String,
+    pub name: String,
+    pub mode: Mode,
+    pub players: Vec<String>,
+    pub updated: f64,
 }

@@ -8,6 +8,8 @@ export type ClientView = {
 	connection: Connection;
 	addresses: Array<string>;
 	nearby: Array<RoomInfo>;
+	recent: Array<RoomInfo>;
+	saves: Array<SavedGame>;
 };
 
 export type Connection = "home" | "connecting" | "connected" | "disconnected";
@@ -55,6 +57,14 @@ export type RoomView = {
 	you: number | null;
 	host: boolean;
 	chat: Array<Chat>;
+};
+
+export type SavedGame = {
+	id: string;
+	name: string;
+	mode: Mode;
+	players: Array<string>;
+	updated: number;
 };
 
 export type Seat = {

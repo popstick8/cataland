@@ -5,7 +5,8 @@ use std::{
 };
 
 use cataland_core::{
-    ClientView, Connection, Identity, Request, RoomAction, RoomSettings, RoomView, room::Room,
+    ClientView, Connection, Identity, Request, RoomAction, RoomInfo, RoomSettings, RoomView,
+    room::Room,
 };
 use mdns_sd::ServiceDaemon;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -13,7 +14,10 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::network::{self, Host};
+use crate::{
+    network::{self, Host},
+    storage,
+};
 
 pub struct Desktop {
     pub directory: PathBuf,
@@ -47,17 +51,17 @@ impl Drop for Link {
 
 impl Desktop {
     pub fn new(directory: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
-        fs::create_dir_all(&directory)?;
-        let identity = match fs::read(directory.join("identity.json")) {
-            Ok(bytes) => serde_json::from_slice(&bytes)?,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Identity {
+        fs::create_dir_all(directory.join("games"))?;
+        let identity =
+            storage::read(&directory.join("identity.json"))?.unwrap_or_else(|| Identity {
                 token: Uuid::new_v4().to_string(),
                 name: "旅人".into(),
                 color: 0,
-            },
-            Err(error) => return Err(error.into()),
-        };
-        let desktop = Self {
+            });
+        let recent = storage::read(&directory.join("recent.json"))?.unwrap_or_default();
+        let saves = storage::games(&directory)?;
+        storage::write(&directory.join("identity.json"), &identity)?;
+        Ok(Self {
             directory,
             daemon: ServiceDaemon::new()?,
             state: Mutex::new(Session {
@@ -67,27 +71,16 @@ impl Desktop {
                     connection: Connection::Home,
                     addresses: Vec::new(),
                     nearby: Vec::new(),
+                    recent,
+                    saves,
                 },
                 link: None,
             }),
-        };
-        desktop.save_identity(
-            &desktop
-                .state
-                .lock()
-                .map_err(|e| e.to_string())?
-                .view
-                .identity,
-        )?;
-        Ok(desktop)
+        })
     }
 
     fn save_identity(&self, identity: &Identity) -> Result<(), String> {
-        let data = serde_json::to_vec(identity).map_err(|e| e.to_string())?;
-        let temporary = self.directory.join("identity.tmp");
-        fs::write(&temporary, data).map_err(|e| format!("玩家身份保存失败：{e}"))?;
-        fs::rename(temporary, self.directory.join("identity.json"))
-            .map_err(|e| format!("玩家身份保存失败：{e}"))
+        storage::write(&self.directory.join("identity.json"), identity)
     }
 }
 
@@ -103,6 +96,23 @@ pub fn receive(app: &AppHandle, cancel: &CancellationToken, room: RoomView) -> R
         state.view.identity.name = you.name.clone();
         state.view.identity.color = you.color;
         desktop.save_identity(&state.view.identity)?;
+    }
+    if !room.host {
+        let recent = RoomInfo {
+            id: room.id.clone(),
+            name: room.settings.name.clone(),
+            addresses: state.view.addresses.clone(),
+            players: room.seats.len(),
+            capacity: room.settings.capacity,
+            mode: room.settings.mode,
+            started: false,
+        };
+        if state.view.recent.first() != Some(&recent) {
+            state.view.recent.retain(|info| info.id != recent.id);
+            state.view.recent.insert(0, recent);
+            state.view.recent.truncate(12);
+            storage::write(&desktop.directory.join("recent.json"), &state.view.recent)?;
+        }
     }
     state.view.room = Some(room);
     state.view.connection = Connection::Connected;
@@ -154,21 +164,54 @@ pub async fn host(
     app: AppHandle,
     desktop: State<'_, Desktop>,
 ) -> Result<(), String> {
-    let mut state = desktop.state.lock().map_err(|e| e.to_string())?;
+    let token = desktop
+        .state
+        .lock()
+        .map_err(|e| e.to_string())?
+        .view
+        .identity
+        .token
+        .clone();
     let identity = Identity {
         name: name.trim().into(),
         color,
-        token: state.view.identity.token.clone(),
+        token,
     };
-    let room = Room::new(Uuid::new_v4().to_string(), settings, identity.clone())?;
+    let room = Room::new(Uuid::new_v4().to_string(), settings, identity)?;
+    open_room(room, app, &desktop)
+}
+
+#[tauri::command]
+pub async fn resume(id: String, app: AppHandle, desktop: State<'_, Desktop>) -> Result<(), String> {
+    let path = storage::game_path(&desktop.directory, &id)?;
+    let mut room = storage::read::<Room>(&path)?.ok_or("找不到这份存档")?;
+    for member in &mut room.members {
+        member.connected = false;
+    }
+    room.members
+        .first_mut()
+        .ok_or("存档中缺少房主席位")?
+        .connected = true;
+    open_room(room, app, &desktop)
+}
+
+fn open_room(room: Room, app: AppHandle, desktop: &Desktop) -> Result<(), String> {
+    let identity = room
+        .members
+        .first()
+        .ok_or("房间中缺少房主席位")?
+        .identity
+        .clone();
+    let mut state = desktop.state.lock().map_err(|e| e.to_string())?;
     desktop.save_identity(&identity)?;
     let room_id = room.id.clone();
-    let host = Host::start(room, desktop.daemon.clone())?;
+    let host = Host::start(room, desktop.daemon.clone(), &desktop.directory)?;
     state.link = Some(Link {
         outgoing: Outgoing::Local(host.clone()),
         cancel: host.cancel.clone(),
     });
     state.view.identity = identity.clone();
+    state.view.saves = storage::games(&desktop.directory)?;
     state.view.addresses = vec![format!("cataland-{room_id}.local.:{}", host.port)];
     state.view.connection = Connection::Connected;
     let mut changes = host.changes.subscribe();
@@ -207,7 +250,6 @@ pub fn join(
     if !(1..=24).contains(&identity.name.chars().count()) || color >= 6 {
         return Err("请输入 1–24 字的名称并选择玩家颜色".into());
     }
-    desktop.save_identity(&identity)?;
     let addresses: Vec<_> = addresses
         .into_iter()
         .map(|address| {
@@ -222,6 +264,7 @@ pub fn join(
     if addresses.is_empty() {
         return Err("请输入主机地址与端口".into());
     }
+    desktop.save_identity(&identity)?;
     let (sender, receiver) = mpsc::unbounded_channel();
     let cancel = CancellationToken::new();
     state.link = Some(Link {
@@ -258,5 +301,6 @@ pub fn leave(app: AppHandle, desktop: State<'_, Desktop>) -> Result<(), String> 
     state.view.room = None;
     state.view.connection = Connection::Home;
     state.view.addresses.clear();
+    state.view.saves = storage::games(&desktop.directory)?;
     app.emit("session", &state.view).map_err(|e| e.to_string())
 }

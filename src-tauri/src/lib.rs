@@ -1,6 +1,7 @@
 mod desktop;
 mod discovery;
 mod network;
+mod storage;
 
 use tauri::Manager;
 
@@ -15,6 +16,7 @@ pub fn run() {
             desktop::session,
             desktop::host,
             desktop::join,
+            desktop::resume,
             desktop::room_action,
             desktop::leave
         ])

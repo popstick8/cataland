@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     net::{Ipv6Addr, SocketAddr},
+    path::PathBuf,
     sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -16,7 +17,7 @@ use tokio::{
 use tokio_tungstenite::{WebSocketStream, accept_async, client_async, tungstenite::Message};
 use tokio_util::sync::CancellationToken;
 
-use crate::{desktop, discovery};
+use crate::{desktop, discovery, storage};
 
 struct Hosted {
     room: Room,
@@ -30,10 +31,15 @@ pub struct Host {
     pub port: u16,
     daemon: ServiceDaemon,
     fullname: String,
+    save: PathBuf,
 }
 
 impl Host {
-    pub fn start(room: Room, daemon: ServiceDaemon) -> Result<Arc<Self>, String> {
+    pub fn start(
+        room: Room,
+        daemon: ServiceDaemon,
+        directory: &std::path::Path,
+    ) -> Result<Arc<Self>, String> {
         let socket = Socket::new(Domain::IPV6, Type::STREAM, Some(Protocol::TCP))
             .map_err(|e| e.to_string())?;
         socket.set_only_v6(false).map_err(|e| e.to_string())?;
@@ -44,6 +50,8 @@ impl Host {
         socket.listen(128).map_err(|e| e.to_string())?;
         let listener = TcpListener::from_std(socket.into()).map_err(|e| e.to_string())?;
         let port = listener.local_addr().map_err(|e| e.to_string())?.port();
+        let save = storage::game_path(directory, &room.id)?;
+        storage::write(&save, &room)?;
         let fullname = discovery::advertise(&daemon, &room, port)?;
         let connections = HashMap::from([(room.members[0].identity.token.clone(), 1)]);
         let host = Arc::new(Self {
@@ -53,6 +61,7 @@ impl Host {
             port,
             daemon,
             fullname,
+            save,
         });
         let server = host.clone();
         tauri::async_runtime::spawn(async move {
@@ -81,6 +90,10 @@ impl Host {
     }
 
     pub fn stop(&self) {
+        let _data = self
+            .data
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if !self.cancel.is_cancelled() {
             self.cancel.cancel();
             if let Err(error) = self.daemon.unregister(&self.fullname) {
@@ -116,11 +129,15 @@ impl Host {
             .map_err(|e| e.to_string())?
             .as_secs_f64()
             * 1000.0;
-        self.data
-            .lock()
-            .map_err(|e| e.to_string())?
-            .room
-            .apply(token, action, time)?;
+        let mut data = self.data.lock().map_err(|e| e.to_string())?;
+        if self.cancel.is_cancelled() {
+            return Err("房间已经关闭".into());
+        }
+        let mut room = data.room.clone();
+        room.apply(token, action, time)?;
+        storage::write(&self.save, &room)?;
+        data.room = room;
+        drop(data);
         self.changes.send_replace(());
         if announce {
             self.announce();
@@ -131,7 +148,13 @@ impl Host {
     fn attach(&self, identity: Identity) -> Result<(), String> {
         let mut data = self.data.lock().map_err(|e| e.to_string())?;
         let token = identity.token.clone();
-        data.room.join(identity)?;
+        if self.cancel.is_cancelled() {
+            return Err("房间已经关闭".into());
+        }
+        let mut room = data.room.clone();
+        room.join(identity)?;
+        storage::write(&self.save, &room)?;
+        data.room = room;
         *data.connections.entry(token).or_default() += 1;
         drop(data);
         self.announce();
@@ -141,6 +164,9 @@ impl Host {
 
     fn detach(&self, token: &str) -> Result<(), String> {
         let mut data = self.data.lock().map_err(|e| e.to_string())?;
+        if self.cancel.is_cancelled() {
+            return Ok(());
+        }
         if let Some(count) = data.connections.get_mut(token) {
             *count -= 1;
             if *count == 0 {
@@ -149,7 +175,7 @@ impl Host {
             }
         }
         self.changes.send_replace(());
-        Ok(())
+        storage::write(&self.save, &data.room)
     }
 
     async fn serve(&self, stream: TcpStream) -> Result<(), String> {
