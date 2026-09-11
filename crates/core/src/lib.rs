@@ -1,5 +1,7 @@
 pub mod board;
+pub mod game;
 pub mod room;
+pub mod view;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -59,11 +61,14 @@ pub struct RoomView {
     pub you: Option<usize>,
     pub host: bool,
     pub chat: Vec<Chat>,
+    pub game: Option<view::GameView>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum RoomAction {
+    Start,
+    Game { action: game::Action },
     Configure { settings: RoomSettings },
     Profile { name: String, color: usize },
     Ready { ready: bool },
@@ -100,7 +105,7 @@ pub enum Request {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Response {
-    State { room: RoomView },
+    State { room: Box<RoomView> },
     Error { message: String },
 }
 

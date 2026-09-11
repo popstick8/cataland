@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Chat, Identity, RoomAction, RoomSettings, RoomView, Seat};
+use crate::{Chat, Identity, RoomAction, RoomSettings, RoomView, Seat, game::Game};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Member {
@@ -16,6 +16,7 @@ pub struct Room {
     pub settings: RoomSettings,
     pub members: Vec<Member>,
     pub chat: Vec<Chat>,
+    pub game: Option<Game>,
 }
 
 impl Room {
@@ -35,6 +36,7 @@ impl Room {
                 ready: true,
             }],
             chat: Vec::new(),
+            game: None,
         })
     }
 
@@ -49,7 +51,7 @@ impl Room {
             return Ok(());
         }
         let count = self.members.iter().filter(|m| m.player.is_some()).count();
-        let player = (count < self.settings.capacity).then_some(count);
+        let player = (self.game.is_none() && count < self.settings.capacity).then_some(count);
         if player.is_some() {
             let used: Vec<_> = self
                 .members
@@ -83,7 +85,46 @@ impl Room {
             .position(|m| m.identity.token == token)
             .ok_or("尚未加入这个房间")?;
         match action {
+            RoomAction::Start => {
+                if index != 0 {
+                    return Err("由房主开始对局".into());
+                }
+                if self.game.is_some() {
+                    return Err("对局已经开始".into());
+                }
+                let seats: Vec<_> = self
+                    .members
+                    .iter()
+                    .filter(|m| m.player.is_some())
+                    .map(|m| Seat {
+                        name: m.identity.name.clone(),
+                        color: m.identity.color,
+                        connected: m.connected,
+                        ready: m.ready,
+                    })
+                    .collect();
+                if seats.iter().any(|seat| !seat.connected || !seat.ready) {
+                    return Err("所有玩家准备就绪后即可开始".into());
+                }
+                self.game = Some(Game::new(
+                    self.settings.mode,
+                    &seats,
+                    self.settings.starter,
+                )?);
+            }
+            RoomAction::Game { action } => {
+                let player = self.members[index]
+                    .player
+                    .ok_or("观战席可以查看对局和参与聊天")?;
+                self.game
+                    .as_mut()
+                    .ok_or("对局尚未开始")?
+                    .apply(player, action)?;
+            }
             RoomAction::Configure { settings } => {
+                if self.game.is_some() {
+                    return Err("房间设置应用于开局前".into());
+                }
                 if index != 0 {
                     return Err("房间设置由房主修改".into());
                 }
@@ -110,6 +151,12 @@ impl Room {
                 }
                 self.members[index].identity.name = name.trim().into();
                 self.members[index].identity.color = color;
+                if let Some(game) = &mut self.game
+                    && let Some(player) = self.members[index].player
+                {
+                    game.players[player].name = name.trim().into();
+                    game.players[player].color = color;
+                }
             }
             RoomAction::Ready { ready } => {
                 if self.members[index].player.is_none() {
@@ -160,6 +207,10 @@ impl Room {
             you: viewer.and_then(|i| self.members[i].player),
             host: viewer == Some(0),
             chat: self.chat.clone(),
+            game: self
+                .game
+                .as_ref()
+                .map(|game| game.view(viewer.and_then(|i| self.members[i].player))),
         }
     }
 }

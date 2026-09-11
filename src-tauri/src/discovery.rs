@@ -33,7 +33,7 @@ pub fn advertise(daemon: &ServiceDaemon, room: &Room, port: u16) -> Result<Strin
                 .to_string(),
         ),
         ("capacity".to_owned(), room.settings.capacity.to_string()),
-        ("started".to_owned(), "false".to_owned()),
+        ("started".to_owned(), room.game.is_some().to_string()),
     ]);
     let service = ServiceInfo::new(
         SERVICE,

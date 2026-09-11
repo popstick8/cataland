@@ -123,7 +123,7 @@ impl Host {
     }
 
     pub fn apply(&self, token: &str, action: RoomAction) -> Result<(), String> {
-        let announce = matches!(action, RoomAction::Configure { .. });
+        let announce = matches!(action, RoomAction::Configure { .. } | RoomAction::Start);
         let time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|e| e.to_string())?
@@ -214,7 +214,7 @@ impl Host {
         send(
             socket,
             &Response::State {
-                room: self.view(token)?,
+                room: Box::new(self.view(token)?),
             },
         )
         .await?;
@@ -223,7 +223,7 @@ impl Host {
                 () = self.cancel.cancelled() => return Ok(()),
                 changed = changes.changed() => {
                     changed.map_err(|e| e.to_string())?;
-                    let response = Response::State { room: self.view(token)? };
+                    let response = Response::State { room: Box::new(self.view(token)?) };
                     send(socket, &response).await?;
                 }
                 incoming = socket.next() => {
@@ -286,7 +286,7 @@ pub async fn guest(
                     let Some(message) = incoming else { return Err("房主已关闭连接".into()) };
                     match message.map_err(|e| e.to_string())? {
                         Message::Text(text) => match serde_json::from_str::<Response>(&text).map_err(|e| e.to_string())? {
-                            Response::State { room } => desktop::receive(&app, &cancel, room)?,
+                            Response::State { room } => desktop::receive(&app, &cancel, *room)?,
                             Response::Error { message } => desktop::notice(&app, &cancel, message)?,
                         },
                         Message::Close(_) => return Err("房主已关闭连接".into()),

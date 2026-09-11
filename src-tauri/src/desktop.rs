@@ -105,7 +105,7 @@ pub fn receive(app: &AppHandle, cancel: &CancellationToken, room: RoomView) -> R
             players: room.seats.len(),
             capacity: room.settings.capacity,
             mode: room.settings.mode,
-            started: false,
+            started: room.game.is_some(),
         };
         if state.view.recent.first() != Some(&recent) {
             state.view.recent.retain(|info| info.id != recent.id);
