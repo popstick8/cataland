@@ -1,5 +1,6 @@
 import { ArrowLeftRight, Check, Landmark, X } from "lucide-react";
 import { useState } from "react";
+import { Art } from "./art";
 import type { Action, GameView, Resource, RoomView } from "./bindings";
 import {
 	CardsEditor,
@@ -65,9 +66,9 @@ export function Trading({
 					<Landmark size={17} /> 银行与港口
 				</summary>
 				<div className="bank-stock">
-					{choices.map(({ id, index, name, Icon, color }) => (
+					{choices.map(({ id, index, name }) => (
 						<span key={id} title={`${name}库存`}>
-							<Icon size={17} style={{ color }} />
+							<Art name={id} size={17} />
 							{game.bank[index]}
 						</span>
 					))}

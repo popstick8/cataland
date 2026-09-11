@@ -239,7 +239,7 @@
 	background: #fffdf1;
 	box-shadow: 0 3px 0 #d2d9c866;
 }
-.resource-card > svg {
+.resource-card > .illustration {
 	grid-row: 1 / 3;
 }
 .resource-card strong {
@@ -460,7 +460,7 @@
 		padding: 8px;
 		grid-template-columns: 24px 1fr;
 	}
-	.resource-card > svg {
+	.resource-card > .illustration {
 		width: 22px;
 	}
 	.hand {

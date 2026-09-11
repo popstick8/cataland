@@ -1,27 +1,18 @@
-import {
-	BrickWall,
-	Cloud,
-	Coins,
-	Gem,
-	ScrollText,
-	Shirt,
-	Trees,
-	Wheat,
-} from "lucide-react";
 import { useState } from "react";
+import { Art } from "./art";
 import type { CardChoice, PrivateView } from "./bindings";
 
 export type Hand = PrivateView["hand"];
 export const emptyHand: Hand = [0, 0, 0, 0, 0, 0, 0, 0];
 export const resources = [
-	{ id: "wood", index: 0, name: "木材", Icon: Trees, color: "#64876c" },
-	{ id: "brick", index: 1, name: "砖块", Icon: BrickWall, color: "#b37356" },
-	{ id: "wool", index: 2, name: "羊毛", Icon: Cloud, color: "#91a77c" },
-	{ id: "grain", index: 3, name: "小麦", Icon: Wheat, color: "#b69545" },
-	{ id: "ore", index: 4, name: "矿石", Icon: Gem, color: "#778a8a" },
-	{ id: "cloth", index: 5, name: "布匹", Icon: Shirt, color: "#b18a69" },
-	{ id: "coin", index: 6, name: "铸币", Icon: Coins, color: "#b99545" },
-	{ id: "paper", index: 7, name: "纸张", Icon: ScrollText, color: "#7c9d81" },
+	{ id: "wood", index: 0, name: "木材" },
+	{ id: "brick", index: 1, name: "砖块" },
+	{ id: "wool", index: 2, name: "羊毛" },
+	{ id: "grain", index: 3, name: "小麦" },
+	{ id: "ore", index: 4, name: "矿石" },
+	{ id: "cloth", index: 5, name: "布匹" },
+	{ id: "coin", index: 6, name: "铸币" },
+	{ id: "paper", index: 7, name: "纸张" },
 ] as const;
 
 export function ResourceCards({
@@ -33,19 +24,17 @@ export function ResourceCards({
 }) {
 	return (
 		<div className="resource-cards">
-			{resources
-				.slice(0, commodities ? 8 : 5)
-				.map(({ id, index, name, Icon, color }) => (
-					<div
-						className={`resource-card ${cards[index] === 0 ? "empty" : ""}`}
-						key={id}
-						title={name}
-					>
-						<Icon size={27} style={{ color }} />
-						<strong>{cards[index]}</strong>
-						<span>{name}</span>
-					</div>
-				))}
+			{resources.slice(0, commodities ? 8 : 5).map(({ id, index, name }) => (
+				<div
+					className={`resource-card ${cards[index] === 0 ? "empty" : ""}`}
+					key={id}
+					title={name}
+				>
+					<Art name={id} size={27} />
+					<strong>{cards[index]}</strong>
+					<span>{name}</span>
+				</div>
+			))}
 		</div>
 	);
 }
@@ -55,9 +44,9 @@ export function Cost({ cards }: { cards: Hand }) {
 		<span className="cost">
 			{resources
 				.filter(({ index }) => cards[index] > 0)
-				.map(({ id, index, name, Icon, color }) => (
+				.map(({ id, index, name }) => (
 					<span className="cost-item" key={id} title={name}>
-						<Icon size={15} style={{ color }} />
+						<Art name={id} size={15} />
 						{cards[index]}
 					</span>
 				))}
@@ -81,33 +70,31 @@ export function CardsEditor({
 	return (
 		<fieldset className="cards-editor">
 			<legend>{label}</legend>
-			{resources
-				.slice(0, commodities ? 8 : 5)
-				.map(({ id, index, name, Icon, color }) => (
-					<label key={id} className="card-amount">
-						<span>
-							<Icon size={19} style={{ color }} />
-							{name}
-						</span>
-						<input
-							type="number"
-							min={0}
-							max={available[index]}
-							value={value[index]}
-							onChange={(event) => {
-								const next: Hand = [...value];
-								next[index] = Math.max(
-									0,
-									Math.min(
-										available[index],
-										Math.trunc(Number(event.target.value)),
-									),
-								);
-								onChange(next);
-							}}
-						/>
-					</label>
-				))}
+			{resources.slice(0, commodities ? 8 : 5).map(({ id, index, name }) => (
+				<label key={id} className="card-amount">
+					<span>
+						<Art name={id} size={19} />
+						{name}
+					</span>
+					<input
+						type="number"
+						min={0}
+						max={available[index]}
+						value={value[index]}
+						onChange={(event) => {
+							const next: Hand = [...value];
+							next[index] = Math.max(
+								0,
+								Math.min(
+									available[index],
+									Math.trunc(Number(event.target.value)),
+								),
+							);
+							onChange(next);
+						}}
+					/>
+				</label>
+			))}
 		</fieldset>
 	);
 }
