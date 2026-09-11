@@ -75,7 +75,9 @@ export async function createScene(
 		resolution: devicePixelRatio,
 		backgroundAlpha: 0,
 	});
-	const terrain = await Assets.load<Spritesheet>("/art/terrain.json");
+	const terrain = await Assets.load<Spritesheet>(
+		new URL("/art/terrain.json", document.baseURI).href,
+	);
 	const surface = document.createElement("div");
 	surface.className = "board-world";
 	surface.append(app.canvas);
