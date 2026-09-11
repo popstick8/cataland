@@ -16,6 +16,8 @@ pub struct PlayerView {
     pub hand_count: u16,
     pub card_count: usize,
     pub army: u8,
+    pub defender: u16,
+    pub revealed: Vec<crate::progress::Progress>,
     pub tokens: u8,
     pub roads: u8,
     pub settlements: u8,
@@ -25,6 +27,7 @@ pub struct PlayerView {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PrivateView {
+    pub progress: Vec<crate::progress::Progress>,
     pub improvements: Vec<crate::cities::Improvement>,
     pub hand_limit: u16,
     pub can_offer: bool,
@@ -111,8 +114,10 @@ impl Game {
                         self.points(player)
                     },
                     hand_count: data.hand.iter().sum(),
-                    card_count: data.cards.len(),
+                    card_count: data.cards.len() + data.progress.len(),
                     army: data.army,
+                    defender: data.defender,
+                    revealed: data.revealed.clone(),
                     tokens: data.tokens,
                     roads: data.roads,
                     settlements: data.settlements,
@@ -126,6 +131,7 @@ impl Game {
             stage: self.stage.clone(),
             turn: self.turn.clone(),
             private: viewer.map(|player| PrivateView {
+                progress: self.players[player].progress.clone(),
                 improvements: self.improvements(player),
                 hand_limit: self.hand_limit(player),
                 can_offer: self.can_offer(player),
@@ -383,6 +389,12 @@ impl Game {
             }
             Effect::ReturnCards { commodities, .. } => {
                 self.return_prompt(*commodities, &mut prompt, active)
+            }
+            Effect::ProgressDiscard { player } => {
+                self.progress_discard_prompt(*player, active, &mut prompt)
+            }
+            effect @ (Effect::Pillage { .. } | Effect::Defender { .. }) => {
+                self.barbarian_prompt(effect, &mut prompt, active)
             }
             Effect::Metropolis { player, track } => {
                 self.metropolis_prompt(*player, *track, active, &mut prompt)

@@ -79,6 +79,10 @@ export type CardView = {
 export type Chat = { name: string; text: string; time: number };
 
 export type CityView = {
+	barbarians: number;
+	attacks: number;
+	event: EventDie | null;
+	decks: [number, number, number];
 	knights: Array<Knight | null>;
 	defense: Array<number>;
 	upgrades: Array<[number, number, number]>;
@@ -100,6 +104,8 @@ export type ClientView = {
 export type Connection = "home" | "connecting" | "connected" | "disconnected";
 
 export type Edge = { vertices: [number, number]; hexes: Array<number> };
+
+export type EventDie = "barbarians" | "trade" | "politics" | "science";
 
 export type GameEvent = {
 	seq: number;
@@ -173,6 +179,8 @@ export type PlayerView = {
 	handCount: number;
 	cardCount: number;
 	army: number;
+	defender: number;
+	revealed: Array<Progress>;
 	tokens: number;
 	roads: number;
 	settlements: number;
@@ -180,6 +188,7 @@ export type PlayerView = {
 };
 
 export type PrivateView = {
+	progress: Array<Progress>;
 	improvements: Array<Improvement>;
 	handLimit: number;
 	canOffer: boolean;
@@ -188,6 +197,33 @@ export type PrivateView = {
 	rates: [number, number, number, number, number, number, number, number];
 	cards: Array<CardView>;
 };
+
+export type Progress =
+	| "commercialHarbor"
+	| "guildDues"
+	| "merchant"
+	| "merchantFleet"
+	| "resourceMonopoly"
+	| "commodityMonopoly"
+	| "diplomacy"
+	| "encouragement"
+	| "espionage"
+	| "intrigue"
+	| "sabotage"
+	| "taxation"
+	| "treason"
+	| "constitution"
+	| "wedding"
+	| "alchemy"
+	| "crane"
+	| "engineering"
+	| "invention"
+	| "irrigation"
+	| "medicine"
+	| "mining"
+	| "roadBuilding"
+	| "smithing"
+	| "printing";
 
 export type Prompt = {
 	player: number;

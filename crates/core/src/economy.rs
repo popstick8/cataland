@@ -58,7 +58,17 @@ impl Game {
     }
 
     pub fn can_city(&self, player: usize, vertex: usize) -> bool {
-        self.players[player].cities > 0
+        let ruins = self.cities.as_ref().map(|cities| &cities.ruins);
+        let ruined = ruins.is_some_and(|ruins| ruins.contains(&vertex));
+        (self.players[player].cities > 0 || ruined)
+            && (ruined
+                || ruins.is_none_or(|ruins| {
+                    !ruins.iter().any(|&site| {
+                        self.buildings[site]
+                            .as_ref()
+                            .is_some_and(|building| building.player == player)
+                    })
+                }))
             && self
                 .buildings
                 .get(vertex)
@@ -109,8 +119,18 @@ impl Game {
             return Err("请选择自己的村庄，并预留一枚城市棋子".into());
         }
         self.pay(player, cost)?;
-        self.players[player].cities -= 1;
-        self.players[player].settlements += 1;
+        if self
+            .cities
+            .as_ref()
+            .is_some_and(|cities| cities.ruins.contains(&vertex))
+        {
+            if let Some(cities) = &mut self.cities {
+                cities.ruins.retain(|&site| site != vertex);
+            }
+        } else {
+            self.players[player].cities -= 1;
+            self.players[player].settlements += 1;
+        }
         self.buildings[vertex] = Some(Building {
             player,
             kind: BuildingKind::City,

@@ -53,6 +53,10 @@ impl Track {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Cities {
+    pub barbarians: u8,
+    pub attacks: u32,
+    pub event: Option<crate::barbarians::EventDie>,
+    pub decks: [Vec<crate::progress::Progress>; 3],
     pub knights: Vec<Option<crate::knights::Knight>>,
     pub walls: Vec<usize>,
     pub metropolises: [Option<usize>; 3],
@@ -62,6 +66,10 @@ pub struct Cities {
 impl Cities {
     pub fn new(vertices: usize) -> Self {
         Self {
+            barbarians: 0,
+            attacks: 0,
+            event: None,
+            decks: crate::progress::Progress::decks(),
             knights: vec![None; vertices],
             walls: Vec::new(),
             metropolises: [None; 3],
@@ -72,6 +80,10 @@ impl Cities {
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct CityView {
+    pub barbarians: u8,
+    pub attacks: u32,
+    pub event: Option<crate::barbarians::EventDie>,
+    pub decks: [usize; 3],
     pub knights: Vec<Option<crate::knights::Knight>>,
     pub defense: Vec<u8>,
     pub upgrades: Vec<[u8; 3]>,
@@ -92,6 +104,10 @@ pub struct Improvement {
 impl Game {
     pub fn city_view(&self) -> Option<CityView> {
         self.cities.as_ref().map(|cities| CityView {
+            barbarians: cities.barbarians,
+            attacks: cities.attacks,
+            event: cities.event,
+            decks: std::array::from_fn(|index| cities.decks[index].len()),
             knights: cities.knights.clone(),
             defense: self.defense(),
             upgrades: self.players.iter().map(|player| player.upgrades).collect(),

@@ -1,4 +1,5 @@
 pub mod awards;
+pub mod barbarians;
 pub mod board;
 pub mod cities;
 pub mod development;
@@ -6,6 +7,7 @@ pub mod duel;
 pub mod economy;
 pub mod game;
 pub mod knights;
+pub mod progress;
 pub mod room;
 pub mod view;
 

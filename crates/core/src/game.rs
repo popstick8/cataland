@@ -35,6 +35,9 @@ pub struct Player {
     pub cities: u8,
     pub cards: Vec<HeldCard>,
     pub army: u8,
+    pub progress: Vec<crate::progress::Progress>,
+    pub revealed: Vec<crate::progress::Progress>,
+    pub defender: u16,
     pub upgrades: [u8; 3],
     pub tokens: u8,
 }
@@ -50,6 +53,9 @@ impl Player {
             cities: 4,
             cards: Vec::new(),
             army: 0,
+            progress: Vec::new(),
+            revealed: Vec::new(),
+            defender: 0,
             upgrades: [0; 3],
             tokens: 0,
         }
@@ -116,6 +122,26 @@ pub enum Action {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Effect {
+    Production {
+        player: usize,
+        total: u8,
+    },
+    EndTurn {
+        player: usize,
+    },
+    DrawProgress {
+        player: usize,
+        track: crate::cities::Track,
+    },
+    ProgressDiscard {
+        player: usize,
+    },
+    Pillage {
+        player: usize,
+    },
+    Defender {
+        player: usize,
+    },
     MoveKnight {
         player: usize,
         from: usize,
@@ -165,7 +191,13 @@ pub enum Effect {
 impl Effect {
     pub fn player(&self) -> usize {
         match self {
-            Self::MoveKnight { player, .. }
+            Self::Production { player, .. }
+            | Self::EndTurn { player }
+            | Self::DrawProgress { player, .. }
+            | Self::ProgressDiscard { player }
+            | Self::Pillage { player }
+            | Self::Defender { player }
+            | Self::MoveKnight { player, .. }
             | Self::Displace { player, .. }
             | Self::Metropolis { player, .. }
             | Self::ReturnCards { player, .. }
@@ -511,6 +543,8 @@ impl Game {
             .count() as u16;
         buildings
             + metropolises * 2
+            + self.players[player].defender
+            + self.players[player].revealed.len() as u16
             + u16::from(self.awards.road == Some(player)) * 2
             + u16::from(self.awards.army == Some(player)) * 2
     }
@@ -569,6 +603,10 @@ impl Game {
                 break dice;
             }
         };
+        self.resolve_roll(dice);
+    }
+
+    pub fn resolve_roll(&mut self, dice: [u8; 2]) {
         let total = dice[0] + dice[1];
         self.turn.dice.push(dice);
         self.stage = if self.humans == 2 && self.turn.dice.len() == 1 {
@@ -585,6 +623,16 @@ impl Game {
             ),
             None,
         );
+        if self.cities.is_some() {
+            self.event_die(dice[0]);
+        }
+        self.pending.push_back(Effect::Production {
+            player: self.turn.player,
+            total,
+        });
+    }
+
+    fn settle_production(&mut self, total: u8) {
         if total == 7 {
             for (player, data) in self.players.iter().take(self.humans).enumerate() {
                 let count: u16 = data.hand.iter().sum();
@@ -678,6 +726,19 @@ impl Game {
     }
 
     fn end_turn(&mut self) {
+        if self.players[self.turn.player].progress.len() > 4 {
+            self.pending.push_back(Effect::ProgressDiscard {
+                player: self.turn.player,
+            });
+            self.pending.push_back(Effect::EndTurn {
+                player: self.turn.player,
+            });
+        } else {
+            self.finish_turn();
+        }
+    }
+
+    fn finish_turn(&mut self) {
         self.trade = None;
         self.turn.development = false;
         self.turn.token_action = false;
@@ -695,19 +756,46 @@ impl Game {
     }
 
     pub fn advance(&mut self) {
-        loop {
-            let complete = match self.pending.front() {
-                Some(Effect::BankCards { .. }) => self.bank[..5].iter().all(|&count| count == 0),
-                Some(Effect::FreeRoad { player, .. }) => {
-                    self.players[*player].roads == 0
-                        || !(0..self.board.edges.len()).any(|edge| self.can_road(*player, edge))
+        while let Some(effect) = self.pending.front().cloned() {
+            match effect {
+                Effect::Production { total, .. } => {
+                    self.pending.pop_front();
+                    self.settle_production(total);
                 }
-                _ => false,
-            };
-            if !complete {
-                break;
+                Effect::EndTurn { .. } => {
+                    self.pending.pop_front();
+                    self.finish_turn();
+                }
+                Effect::DrawProgress { player, track } => {
+                    self.pending.pop_front();
+                    self.draw_progress(player, track);
+                }
+                Effect::ProgressDiscard { player } if self.players[player].progress.len() <= 4 => {
+                    self.pending.pop_front();
+                }
+                Effect::Defender { .. }
+                    if self
+                        .cities
+                        .as_ref()
+                        .is_none_or(|cities| cities.decks.iter().all(Vec::is_empty)) =>
+                {
+                    self.pending.pop_front();
+                }
+                Effect::Pillage { player } if self.ordinary_cities(player).is_empty() => {
+                    self.pending.pop_front();
+                }
+                Effect::BankCards { .. } if self.bank[..5].iter().all(|&count| count == 0) => {
+                    self.pending.pop_front();
+                }
+                Effect::FreeRoad { player, .. }
+                    if self.players[player].roads == 0
+                        || !(0..self.board.edges.len()).any(|edge| self.can_road(player, edge)) =>
+                {
+                    self.pending.pop_front();
+                }
+                _ => break,
             }
-            self.pending.pop_front();
+            self.check_victory();
         }
     }
 
@@ -729,6 +817,31 @@ impl Game {
         let index = self.pending_index(player).ok_or("当前由其他玩家完成选择")?;
         let effect = self.pending[index].clone();
         match (effect, action) {
+            (Effect::Pillage { .. }, Action::Pick { value }) => {
+                self.pillage(player, value)?;
+                self.pending.remove(index);
+            }
+            (Effect::Defender { .. }, Action::Pick { value }) => {
+                let track = *crate::cities::Track::ALL
+                    .get(value)
+                    .ok_or("请选择一种进步牌堆")?;
+                if self
+                    .cities
+                    .as_ref()
+                    .is_none_or(|cities| cities.decks[value].is_empty())
+                {
+                    return Err("这个牌堆已经为空".into());
+                }
+                self.pending.remove(index);
+                self.pending
+                    .push_front(Effect::DrawProgress { player, track });
+            }
+            (Effect::ProgressDiscard { .. }, Action::Pick { value }) => {
+                self.discard_progress(player, value)?;
+                if self.players[player].progress.len() <= 4 {
+                    self.pending.remove(index);
+                }
+            }
             (Effect::Discard { count, .. }, Action::SelectCards { cards }) => {
                 if cards.iter().map(|&count| u32::from(count)).sum::<u32>() != u32::from(count) {
                     return Err(format!("需要选择 {count} 张牌"));
