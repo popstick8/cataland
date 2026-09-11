@@ -134,6 +134,7 @@ export function ProgressCards({
 							key={card.card}
 							type="button"
 							className="progress-card"
+							data-card={card.card}
 							style={{ borderLeftColor: color }}
 							disabled={busy || !card.playable}
 							onClick={() => act({ type: "playProgress", card: card.card })}

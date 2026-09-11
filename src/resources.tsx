@@ -28,6 +28,7 @@ export function ResourceCards({
 		<div className="resource-cards">
 			{resources.slice(0, commodities ? 8 : 5).map(({ id, index, name }) => (
 				<div
+					data-resource={id}
 					className={`resource-card ${cards[index] === 0 ? "empty" : ""}`}
 					key={id}
 					title={t(name)}

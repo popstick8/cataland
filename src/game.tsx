@@ -7,7 +7,7 @@ import {
 	ScrollText,
 	Swords,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Art } from "./art";
 import type { Action, GameView, RoomView } from "./bindings";
 import { BoardCanvas } from "./board";
@@ -15,6 +15,7 @@ import { CityPanel } from "./cities";
 import { KnightPanel } from "./knights";
 import { ChatPanel } from "./lobby";
 import { useText } from "./locale";
+import { useGameMotion } from "./motion";
 import { colors } from "./palette";
 import { EventSymbol, IslandEvents, ProgressCards } from "./progress";
 import { CardPicker, Cost, ResourceCards } from "./resources";
@@ -63,6 +64,8 @@ export function GameTable({
 	session: Session;
 }) {
 	const t = useText();
+	const element = useRef<HTMLElement>(null);
+	useGameMotion(element, game, session.view?.preferences.animation ?? 1);
 	const [tool, setTool] = useState("");
 	const [tab, setTab] = useState<"events" | "chat">("events");
 	const [eventCount, setEventCount] = useState(60);
@@ -127,7 +130,7 @@ export function GameTable({
 			cards.findIndex((item) => item.card === card.card) === index,
 	);
 	return (
-		<main className="game">
+		<main className="game" ref={element}>
 			<header className="game-heading">
 				<button
 					type="button"
@@ -157,6 +160,7 @@ export function GameTable({
 				{game.players.map((player, index) => (
 					<section
 						key={player.color}
+						data-player={index}
 						className={`player-panel ${index === game.turn.player ? "current" : ""}`}
 						style={{ borderTopColor: colors[player.color] }}
 					>
@@ -400,6 +404,7 @@ export function GameTable({
 										type="button"
 										key={card.card}
 										className="development-card"
+										data-card={card.card}
 										disabled={
 											session.busy ||
 											!cards.some(

@@ -40,7 +40,6 @@
 	top: -23px;
 	transform: translateX(-50%);
 	color: #8f6949;
-	transition: left 0.35s ease;
 }
 .battle-strength {
 	display: flex;

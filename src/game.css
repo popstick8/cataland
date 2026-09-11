@@ -484,3 +484,20 @@
 	pointer-events: none;
 	transform-origin: 50% 80%;
 }
+
+.resource-flight {
+	position: fixed;
+	z-index: 90;
+	pointer-events: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+	width: 58px;
+	height: 40px;
+	border-radius: 12px;
+	background: var(--paper);
+	color: var(--ink);
+	font-weight: 600;
+	box-shadow: 0 4px 18px #173d4430;
+}
