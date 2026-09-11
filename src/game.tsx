@@ -8,6 +8,7 @@ import {
 	Swords,
 } from "lucide-react";
 import { useCallback, useState } from "react";
+import { Art } from "./art";
 import type { Action, GameView, RoomView } from "./bindings";
 import { BoardCanvas } from "./board";
 import { CityPanel } from "./cities";
@@ -290,8 +291,6 @@ export function GameTable({
 					)}
 				</section>
 				<aside className="game-sidebar">
-					<IslandEvents game={game} />
-					<ProgressCards game={game} act={act} busy={session.busy} />
 					{prompt && (
 						<section className="game-panel prompt-panel">
 							<h3>
@@ -337,6 +336,8 @@ export function GameTable({
 							<p>群岛上的这段故事已写下结局。</p>
 						</section>
 					)}
+					<ProgressCards game={game} act={act} busy={session.busy} />
+					<IslandEvents game={game} />
 					<KnightPanel game={game} room={room} act={act} busy={session.busy} />
 					<CityPanel game={game} room={room} act={act} busy={session.busy} />
 					<Trading game={game} room={room} act={act} busy={session.busy} />
@@ -375,6 +376,7 @@ export function GameTable({
 										}
 										onClick={() => act({ type: "playCard", card: card.card })}
 									>
+										<Art name={card.card} size={68} />
 										<strong>
 											{card.name}
 											<span>

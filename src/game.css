@@ -313,10 +313,14 @@
 }
 .development-card {
 	display: grid;
+	grid-template-columns: 68px minmax(0, 1fr);
 	text-align: left;
 	padding: 12px;
 	border-color: #ded8c4;
 	background: #fbf4df;
+}
+.development-card > .illustration {
+	grid-row: 1 / 3;
 }
 .development-card strong {
 	display: flex;

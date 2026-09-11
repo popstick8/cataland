@@ -1,4 +1,5 @@
 import { Crown, Shield, Ship } from "lucide-react";
+import { Art } from "./art";
 import type { Action, EventDie, GameView } from "./bindings";
 import { tracks } from "./cities";
 import "./progress.css";
@@ -114,7 +115,7 @@ export function ProgressCards({
 			</h3>
 			<div className="progress-cards">
 				{kinds.map((card) => {
-					const { Icon, color } = tracks[card.track];
+					const { color } = tracks[card.track];
 					return (
 						<button
 							key={card.card}
@@ -124,7 +125,7 @@ export function ProgressCards({
 							disabled={busy || !card.playable}
 							onClick={() => act({ type: "playProgress", card: card.card })}
 						>
-							<Icon size={28} style={{ color }} />
+							<Art name={card.card} size={72} />
 							<span>
 								<strong>
 									{card.name}
