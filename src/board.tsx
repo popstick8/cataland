@@ -1,6 +1,7 @@
 import { Focus, Minus, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Action, GameView } from "./bindings";
+import { useText } from "./locale";
 import type { BoardOption, Scene } from "./scene";
 
 export function BoardCanvas({
@@ -12,6 +13,7 @@ export function BoardCanvas({
 	options: BoardOption[];
 	act: (action: Action) => void;
 }) {
+	const t = useText();
 	const element = useRef<HTMLDivElement>(null);
 	const scene = useRef<Scene | null>(null);
 	const current = useRef({ game, options, act });
@@ -57,14 +59,14 @@ export function BoardCanvas({
 			<div className="board-canvas" ref={element} />
 			{error && (
 				<div className="board-error" role="alert">
-					棋盘无法绘制：{error}
+					{t("棋盘无法绘制：{0}", error)}
 				</div>
 			)}
 			<div className="board-navigation">
 				<button
 					type="button"
 					className="icon-button"
-					aria-label="缩小棋盘"
+					aria-label={t("缩小棋盘")}
 					onClick={() => scene.current?.zoom(0.8)}
 				>
 					<Minus size={18} />
@@ -72,7 +74,7 @@ export function BoardCanvas({
 				<button
 					type="button"
 					className="icon-button"
-					aria-label="查看完整棋盘"
+					aria-label={t("查看完整棋盘")}
 					onClick={() => scene.current?.fit()}
 				>
 					<Focus size={18} />
@@ -80,7 +82,7 @@ export function BoardCanvas({
 				<button
 					type="button"
 					className="icon-button"
-					aria-label="放大棋盘"
+					aria-label={t("放大棋盘")}
 					onClick={() => scene.current?.zoom(1.25)}
 				>
 					<Plus size={18} />

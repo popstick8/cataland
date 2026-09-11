@@ -14,6 +14,7 @@ import { BoardCanvas } from "./board";
 import { CityPanel } from "./cities";
 import { KnightPanel } from "./knights";
 import { ChatPanel } from "./lobby";
+import { useText } from "./locale";
 import { colors } from "./palette";
 import { EventSymbol, IslandEvents, ProgressCards } from "./progress";
 import { CardPicker, Cost, ResourceCards } from "./resources";
@@ -32,11 +33,12 @@ const dots: Record<number, readonly number[]> = {
 };
 
 function Die({ value, red = false }: { value: number; red?: boolean }) {
+	const t = useText();
 	return (
 		<span
 			className={`die ${red ? "red" : ""}`}
 			role="img"
-			aria-label={`${value} 点`}
+			aria-label={t("{0} 点", value)}
 		>
 			{dots[value]?.map((position) => (
 				<i
@@ -60,6 +62,7 @@ export function GameTable({
 	game: GameView;
 	session: Session;
 }) {
+	const t = useText();
 	const [tool, setTool] = useState("");
 	const [tab, setTab] = useState<"events" | "chat">("events");
 	const [eventCount, setEventCount] = useState(60);
@@ -131,22 +134,23 @@ export function GameTable({
 					className="quiet"
 					onClick={() => void session.run("leave")}
 				>
-					<ArrowLeft size={18} /> 返回
+					<ArrowLeft size={18} />
+					{t("返回")}
 				</button>
 				<h1>{room.settings.name}</h1>
 				<span className="muted">
-					{game.mode === "cities" ? "城市与骑士" : "基础规则"} ·{" "}
-					{game.mode === "cities" ? 13 : 10} 分获胜
+					{game.mode === "cities" ? t("城市与骑士") : t("基础规则")} ·{" "}
+					{t("{0} 分获胜", game.mode === "cities" ? 13 : 10)}
 				</span>
 				<span className="game-round">
 					{game.stage.type === "setup"
-						? "初始放置"
-						: `第 ${game.turn.number} 回合`}
+						? t("初始放置")
+						: t("第 {0} 回合", game.turn.number)}
 					{game.humans >= 5 &&
 						game.stage.type !== "setup" &&
 						(game.turn.player === game.turn.primary
-							? " · 主回合"
-							: " · 配对行动")}
+							? t(" · 主回合")
+							: t(" · 配对行动"))}
 				</span>
 			</header>
 			<div className="players-strip">
@@ -161,42 +165,50 @@ export function GameTable({
 								className="player-dot"
 								style={{ background: colors[player.color] }}
 							/>
-							<strong>{player.name}</strong>
-							{index === room.you && <span className="own-mark">自己</span>}
+							<strong>
+								{index < game.humans
+									? player.name
+									: t("中立势力 {0}", index - game.humans + 1)}
+							</strong>
+							{index === room.you && (
+								<span className="own-mark">{t("自己")}</span>
+							)}
 							{index < game.humans && (
 								<span className="player-score">
 									{index === room.you ? game.private?.points : player.points}
-									<small>分</small>
+									<small>{t("分")}</small>
 								</span>
 							)}
 						</div>
 						<div className="player-details">
 							{index < game.humans && (
 								<>
-									<span title="资源与商品">
+									<span title={t("资源与商品")}>
 										<Layers size={13} />
 										{player.handCount}
 									</span>
-									<span title="发展卡">
+									<span title={t("发展卡")}>
 										<ScrollText size={13} />
 										{player.cardCount}
 									</span>
 								</>
 							)}
-							<span title="最长道路">
+							<span title={t("最长道路")}>
 								<Route size={13} />
 								{game.awards.lengths[index]}
 								{game.awards.road === index && <Crown size={12} />}
 							</span>
 							{index < game.humans && (
-								<span title={game.cities ? "激活骑士防御力" : "已使用骑士"}>
+								<span
+									title={game.cities ? t("激活骑士防御力") : t("已使用骑士")}
+								>
 									<Swords size={13} />
 									{game.cities ? game.cities.defense[index] : player.army}
 									{game.awards.army === index && <Crown size={12} />}
 								</span>
 							)}
 							{room.seats[index]?.connected === false && (
-								<span className="offline">断线</span>
+								<span className="offline">{t("断线")}</span>
 							)}
 						</div>
 					</section>
@@ -213,23 +225,23 @@ export function GameTable({
 							</strong>
 							<span>
 								{game.winner !== null
-									? "赢得了这场对局"
+									? t("赢得了这场对局")
 									: prompt
-										? prompt.title
+										? t(prompt.title)
 										: game.stage.type === "setup"
 											? game.stage.road === null
-												? "选择起始建筑的位置"
-												: "放置相连的道路"
+												? t("选择起始建筑的位置")
+												: t("放置相连的道路")
 											: game.stage.type === "production"
-												? "掷骰并开始生产"
-												: "建造、交易或使用卡牌"}
+												? t("掷骰并开始生产")
+												: t("建造、交易或使用卡牌")}
 							</span>
 						</div>
 						{dice && (
 							<div className="dice">
 								{previousDice && (
 									<small className="muted">
-										首次 {previousDice[0] + previousDice[1]}
+										{t("首次 {0}", previousDice[0] + previousDice[1])}
 									</small>
 								)}
 								<Die value={dice[0]} red={game.mode === "cities"} />
@@ -248,7 +260,7 @@ export function GameTable({
 									disabled={session.busy}
 									onClick={() => act(choice.action)}
 								>
-									{choice.label}
+									{t(choice.label)}
 									<Cost cards={choice.cost} />
 								</button>
 							))}
@@ -262,11 +274,13 @@ export function GameTable({
 								aria-pressed={selected === choice.action.type}
 								onClick={() => setTool(choice.action.type)}
 							>
-								{choice.label}
+								{t(choice.label)}
 								<Cost cards={choice.cost} />
 							</button>
 						))}
-						{!prompt && tools.length > 0 && <span>点击棋盘上的高亮位置</span>}
+						{!prompt && tools.length > 0 && (
+							<span>{t("点击棋盘上的高亮位置")}</span>
+						)}
 					</div>
 					<BoardCanvas game={game} options={options} act={act} />
 					{game.private ? (
@@ -276,17 +290,20 @@ export function GameTable({
 								commodities={game.mode === "cities"}
 							/>
 							<div className="hand-caption">
-								<span>自己的手牌</span>
+								<span>{t("自己的手牌")}</span>
 								<small>
-									剩余棋子：道路 {game.players[room.you ?? 0]?.roads} · 村庄{" "}
-									{game.players[room.you ?? 0]?.settlements} · 城市{" "}
-									{game.players[room.you ?? 0]?.cities}
+									{t(
+										"剩余棋子：道路 {0} · 村庄 {1} · 城市 {2}",
+										game.players[room.you ?? 0]?.roads ?? 0,
+										game.players[room.you ?? 0]?.settlements ?? 0,
+										game.players[room.you ?? 0]?.cities ?? 0,
+									)}
 								</small>
 							</div>
 						</div>
 					) : (
 						<div className="spectator-caption">
-							观战席 · {room.spectators.join("、")}
+							{t("观战席 · {0}", room.spectators.join(t("、")))}
 						</div>
 					)}
 				</section>
@@ -294,7 +311,9 @@ export function GameTable({
 					{prompt && (
 						<section className="game-panel prompt-panel">
 							<h3>
-								{ownPrompt ? prompt.title : `${actor?.name}：${prompt.title}`}
+								{ownPrompt
+									? t(prompt.title)
+									: t("{0}：{1}", actor?.name ?? "", t(prompt.title))}
 							</h3>
 							{ownPrompt && prompt.cards && (
 								<CardPicker
@@ -314,7 +333,7 @@ export function GameTable({
 											disabled={session.busy}
 											onClick={() => act({ type: "pick", value: choice.value })}
 										>
-											{choice.label}
+											{t(choice.label)}
 										</button>
 									))}
 							{ownPrompt && prompt.canSkip && (
@@ -323,17 +342,19 @@ export function GameTable({
 									disabled={session.busy}
 									onClick={() => act({ type: "skip" })}
 								>
-									完成选择
+									{t("完成选择")}
 								</button>
 							)}
-							{!ownPrompt && <p className="muted">选择完成后继续当前回合。</p>}
+							{!ownPrompt && (
+								<p className="muted">{t("选择完成后继续当前回合。")}</p>
+							)}
 						</section>
 					)}
 					{game.winner !== null && (
 						<section className="game-panel winner-panel">
 							<Crown size={32} />
-							<h2>{game.players[game.winner]?.name}获胜</h2>
-							<p>群岛上的这段故事已写下结局。</p>
+							<h2>{t("{0}获胜", game.players[game.winner]?.name ?? "")}</h2>
+							<p>{t("群岛上的这段故事已写下结局。")}</p>
 						</section>
 					)}
 					<ProgressCards game={game} act={act} busy={session.busy} />
@@ -343,17 +364,19 @@ export function GameTable({
 					<Trading game={game} room={room} act={act} busy={session.busy} />
 					{game.humans === 2 && room.you !== null && (
 						<section className="game-panel">
-							<h3>贸易筹码 · {game.players[room.you]?.tokens}</h3>
-							<p className="muted">供应剩余 {game.tokens} 个</p>
+							<h3>
+								{t("贸易筹码 · {0}", game.players[room.you]?.tokens ?? 0)}
+							</h3>
+							<p className="muted">{t("供应剩余 {0} 个", game.tokens)}</p>
 							<div className="development-cards">
 								{tokenActions.map((choice) => (
 									<button
 										type="button"
-										key={choice.label}
+										key={t(choice.label)}
 										disabled={session.busy}
 										onClick={() => act(choice.action)}
 									>
-										{choice.label}
+										{t(choice.label)}
 									</button>
 								))}
 							</div>
@@ -361,7 +384,7 @@ export function GameTable({
 					)}
 					{cardTypes.length > 0 && (
 						<section className="game-panel">
-							<h3>发展卡</h3>
+							<h3>{t("发展卡")}</h3>
 							<div className="development-cards">
 								{cardTypes.map((card) => (
 									<button
@@ -378,13 +401,13 @@ export function GameTable({
 									>
 										<Art name={card.card} size={68} />
 										<strong>
-											{card.name}
+											{t(card.name)}
 											<span>
 												×
 												{cards.filter((item) => item.card === card.card).length}
 											</span>
 										</strong>
-										<small>{card.description}</small>
+										<small>{t(card.description)}</small>
 									</button>
 								))}
 							</div>
@@ -397,27 +420,33 @@ export function GameTable({
 								aria-pressed={tab === "events"}
 								onClick={() => setTab("events")}
 							>
-								<ScrollText size={16} /> 记录
+								<ScrollText size={16} />
+								{t("记录")}
 							</button>
 							<button
 								type="button"
 								aria-pressed={tab === "chat"}
 								onClick={() => setTab("chat")}
 							>
-								<MessageCircle size={16} /> 聊天
+								<MessageCircle size={16} />
+								{t("聊天")}
 							</button>
 						</div>
 						{tab === "chat" ? (
 							<ChatPanel room={room} session={session} />
 						) : (
-							<div className="game-events" role="log" aria-label="游戏记录">
+							<div
+								className="game-events"
+								role="log"
+								aria-label={t("游戏记录")}
+							>
 								{game.events.length > eventCount && (
 									<button
 										type="button"
 										className="quiet"
 										onClick={() => setEventCount(eventCount + 60)}
 									>
-										更早的记录
+										{t("更早的记录")}
 									</button>
 								)}
 								{game.events.slice(-eventCount).map((event) => (

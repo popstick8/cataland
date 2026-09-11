@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Art } from "./art";
 import type { CardChoice, PrivateView } from "./bindings";
+import { useText } from "./locale";
 
 export type Hand = PrivateView["hand"];
 export const emptyHand: Hand = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -22,17 +23,18 @@ export function ResourceCards({
 	cards: Hand;
 	commodities?: boolean;
 }) {
+	const t = useText();
 	return (
 		<div className="resource-cards">
 			{resources.slice(0, commodities ? 8 : 5).map(({ id, index, name }) => (
 				<div
 					className={`resource-card ${cards[index] === 0 ? "empty" : ""}`}
 					key={id}
-					title={name}
+					title={t(name)}
 				>
 					<Art name={id} size={27} />
 					<strong>{cards[index]}</strong>
-					<span>{name}</span>
+					<span>{t(name)}</span>
 				</div>
 			))}
 		</div>
@@ -40,12 +42,13 @@ export function ResourceCards({
 }
 
 export function Cost({ cards }: { cards: Hand }) {
+	const t = useText();
 	return (
 		<span className="cost">
 			{resources
 				.filter(({ index }) => cards[index] > 0)
 				.map(({ id, index, name }) => (
-					<span className="cost-item" key={id} title={name}>
+					<span className="cost-item" key={id} title={t(name)}>
 						<Art name={id} size={15} />
 						{cards[index]}
 					</span>
@@ -67,6 +70,7 @@ export function CardsEditor({
 	commodities?: boolean;
 	label: string;
 }) {
+	const t = useText();
 	return (
 		<fieldset className="cards-editor">
 			<legend>{label}</legend>
@@ -74,7 +78,7 @@ export function CardsEditor({
 				<label key={id} className="card-amount">
 					<span>
 						<Art name={id} size={19} />
-						{name}
+						{t(name)}
 					</span>
 					<input
 						type="number"
@@ -108,6 +112,7 @@ export function CardPicker({
 	submit: (cards: Hand) => void;
 	busy: boolean;
 }) {
+	const t = useText();
 	const [cards, setCards] = useState<Hand>([...emptyHand]);
 	const count = cards.reduce((sum, value) => sum + value, 0);
 	return (
@@ -122,14 +127,14 @@ export function CardPicker({
 				onChange={setCards}
 				available={selection.available}
 				commodities={selection.available.slice(5).some((value) => value > 0)}
-				label={`选择 ${selection.count} 张牌`}
+				label={t("选择 {0} 张牌", selection.count)}
 			/>
 			<button
 				type="submit"
 				className="primary wide"
 				disabled={busy || count !== selection.count}
 			>
-				确定 · {count} / {selection.count}
+				{t("确定 · {0} / {1}", count, selection.count)}
 			</button>
 		</form>
 	);

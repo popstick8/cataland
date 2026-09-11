@@ -2,6 +2,7 @@ import { ArrowLeftRight, Check, Landmark, X } from "lucide-react";
 import { useState } from "react";
 import { Art } from "./art";
 import type { Action, GameView, Resource, RoomView } from "./bindings";
+import { useText } from "./locale";
 import {
 	CardsEditor,
 	Cost,
@@ -22,6 +23,7 @@ export function Trading({
 	act: (action: Action) => void;
 	busy: boolean;
 }) {
+	const t = useText();
 	const [give, setGive] = useState<Resource>("wood");
 	const [take, setTake] = useState<Resource>("grain");
 	const [offering, setOffering] = useState(false);
@@ -63,11 +65,12 @@ export function Trading({
 		<section className="game-panel trading">
 			<details className="bank-panel">
 				<summary>
-					<Landmark size={17} /> 银行与港口
+					<Landmark size={17} />
+					{t("银行与港口")}
 				</summary>
 				<div className="bank-stock">
 					{choices.map(({ id, index, name }) => (
-						<span key={id} title={`${name}库存`}>
+						<span key={id} title={t("{0}库存", t(name))}>
 							<Art name={id} size={17} />
 							{game.bank[index]}
 						</span>
@@ -82,7 +85,7 @@ export function Trading({
 					>
 						<div className="exchange-fields">
 							<label>
-								给出
+								{t("给出")}
 								<select
 									value={give}
 									onChange={(event) => {
@@ -94,14 +97,14 @@ export function Trading({
 								>
 									{choices.map(({ id, index, name }) => (
 										<option key={id} value={id}>
-											{name} · {game.private?.rates[index]} 张
+											{t("{0} × {1}", t(name), game.private?.rates[index] ?? 0)}
 										</option>
 									))}
 								</select>
 							</label>
 							<ArrowLeftRight size={17} />
 							<label>
-								换取
+								{t("换取")}
 								<select
 									value={take}
 									onChange={(event) => {
@@ -113,27 +116,28 @@ export function Trading({
 								>
 									{choices.map(({ id, name }) => (
 										<option key={id} value={id}>
-											{name} · 1 张
+											{t("{0} × {1}", t(name), 1)}
 										</option>
 									))}
 								</select>
 							</label>
 						</div>
 						<button type="submit" className="wide" disabled={busy || !exchange}>
-							兑换{exchange && <Cost cards={exchange.cost} />}
+							{t("兑换")}
+							{exchange && <Cost cards={exchange.cost} />}
 						</button>
 					</form>
 				)}
 			</details>
 			{trade && (
 				<div className="trade-offer">
-					<h3>{game.players[trade.player]?.name}的报价</h3>
+					<h3>{t("{0}的报价", game.players[trade.player]?.name ?? "")}</h3>
 					<p>
-						<span>给出</span>
+						<span>{t("给出")}</span>
 						<Cost cards={trade.give} />
 					</p>
 					<p>
-						<span>索取</span>
+						<span>{t("索取")}</span>
 						<Cost cards={trade.want} />
 					</p>
 					<div className="trade-responses">
@@ -157,11 +161,11 @@ export function Trading({
 						{responses.map((choice) => (
 							<button
 								type="button"
-								key={choice.label}
+								key={t(choice.label)}
 								disabled={busy}
 								onClick={() => act(choice.action)}
 							>
-								{choice.label}
+								{t(choice.label)}
 							</button>
 						))}
 					</div>
@@ -182,7 +186,7 @@ export function Trading({
 					}}
 				>
 					<ArrowLeftRight size={16} />
-					{trade ? "修改报价" : "与玩家交易"}
+					{trade ? t("修改报价") : t("与玩家交易")}
 				</button>
 			)}
 			{offering && game.private?.canOffer && balance && (
@@ -195,14 +199,14 @@ export function Trading({
 					}}
 				>
 					<CardsEditor
-						label="给出"
+						label={t("给出")}
 						value={offered}
 						onChange={setOffered}
 						available={balance}
 						commodities={game.mode === "cities"}
 					/>
 					<CardsEditor
-						label="索取"
+						label={t("索取")}
 						value={wanted}
 						onChange={setWanted}
 						available={supply}
@@ -210,10 +214,10 @@ export function Trading({
 					/>
 					<div className="form-row">
 						<button type="button" onClick={() => setOffering(false)}>
-							取消
+							{t("取消")}
 						</button>
 						<button type="submit" className="primary" disabled={busy || !valid}>
-							发送报价
+							{t("发送报价")}
 						</button>
 					</div>
 				</form>

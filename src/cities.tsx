@@ -1,5 +1,6 @@
 import { Coins, Crown, FlaskConical, Landmark } from "lucide-react";
 import type { Action, GameView, RoomView, Track } from "./bindings";
+import { useText } from "./locale";
 import { Cost } from "./resources";
 import "./cities.css";
 
@@ -39,12 +40,13 @@ export function CityPanel({
 	act: (action: Action) => void;
 	busy: boolean;
 }) {
+	const t = useText();
 	const cities = game.cities;
 	if (!cities) return null;
 	const own = game.private;
 	return (
 		<section className="game-panel cities-panel">
-			<h3>城市发展</h3>
+			<h3>{t("城市发展")}</h3>
 			{own?.improvements.map((improvement, index) => {
 				const track = tracks[improvement.track];
 				const upgrade = game.actions.find(
@@ -61,13 +63,13 @@ export function CityPanel({
 					<div className="city-improvement" key={improvement.track}>
 						<div className="improvement-heading">
 							<track.Icon size={18} style={{ color: track.color }} />
-							<strong>{track.name}</strong>
-							<span>{improvement.name}</span>
+							<strong>{t(track.name)}</strong>
+							<span>{t(improvement.name)}</span>
 						</div>
 						<div
 							className="improvement-levels"
 							role="img"
-							aria-label={`${track.name} ${improvement.level} 级`}
+							aria-label={t("{0} {1} 级", t(track.name), improvement.level)}
 						>
 							{[1, 2, 3, 4, 5].map((level) => (
 								<i
@@ -82,12 +84,16 @@ export function CityPanel({
 						<p
 							className={`improvement-ability ${improvement.level >= 3 ? "active" : ""}`}
 						>
-							{track.ability}
+							{t(track.ability)}
 						</p>
 						{holder !== null && holder !== undefined && (
 							<p className="metropolis-holder">
 								<Crown size={13} />
-								{game.players[holder]?.name}的{track.name}大都会
+								{t(
+									"{0}的{1}大都会",
+									game.players[holder]?.name ?? "",
+									t(track.name),
+								)}
 							</p>
 						)}
 						{improvement.next && (
@@ -99,7 +105,7 @@ export function CityPanel({
 									if (upgrade) act(upgrade.action);
 								}}
 							>
-								建成{improvement.next}
+								{t("建成{0}", t(improvement.next))}
 								<Cost cards={improvement.cost} />
 							</button>
 						)}
@@ -107,17 +113,19 @@ export function CityPanel({
 				);
 			})}
 			{own && (
-				<p className="city-hand-limit">手牌超过 {own.handLimit} 张时弃掉一半</p>
+				<p className="city-hand-limit">
+					{t("手牌超过 {0} 张时弃掉一半", own.handLimit)}
+				</p>
 			)}
 			<details className="city-overview">
-				<summary>全岛城市发展</summary>
+				<summary>{t("全岛城市发展")}</summary>
 				<table>
 					<thead>
 						<tr>
-							<th>玩家</th>
-							<th>贸易</th>
-							<th>政治</th>
-							<th>科学</th>
+							<th>{t("玩家")}</th>
+							<th>{t("贸易")}</th>
+							<th>{t("政治")}</th>
+							<th>{t("科学")}</th>
 						</tr>
 					</thead>
 					<tbody>
