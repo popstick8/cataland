@@ -1,0 +1,136 @@
+{
+	"frames": {
+		"forest-0": {
+			"frame": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"hills-0": {
+			"frame": { "x": 512, "y": 0, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"pasture-0": {
+			"frame": { "x": 1024, "y": 0, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"fields-0": {
+			"frame": { "x": 1536, "y": 0, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"mountains-0": {
+			"frame": { "x": 2048, "y": 0, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"desert-0": {
+			"frame": { "x": 2560, "y": 0, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"forest-1": {
+			"frame": { "x": 0, "y": 512, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"hills-1": {
+			"frame": { "x": 512, "y": 512, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"pasture-1": {
+			"frame": { "x": 1024, "y": 512, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"fields-1": {
+			"frame": { "x": 1536, "y": 512, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"mountains-1": {
+			"frame": { "x": 2048, "y": 512, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"desert-1": {
+			"frame": { "x": 2560, "y": 512, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"forest-2": {
+			"frame": { "x": 0, "y": 1024, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"hills-2": {
+			"frame": { "x": 512, "y": 1024, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"pasture-2": {
+			"frame": { "x": 1024, "y": 1024, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"fields-2": {
+			"frame": { "x": 1536, "y": 1024, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"mountains-2": {
+			"frame": { "x": 2048, "y": 1024, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		},
+		"desert-2": {
+			"frame": { "x": 2560, "y": 1024, "w": 512, "h": 512 },
+			"rotated": false,
+			"trimmed": false,
+			"spriteSourceSize": { "x": 0, "y": 0, "w": 512, "h": 512 },
+			"sourceSize": { "w": 512, "h": 512 }
+		}
+	},
+	"meta": {
+		"image": "terrain.webp",
+		"format": "RGBA8888",
+		"size": { "w": 3072, "h": 1536 },
+		"scale": "1"
+	}
+}

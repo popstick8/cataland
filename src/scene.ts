@@ -1,4 +1,12 @@
-import { Application, Container, Graphics, Text } from "pixi.js";
+import {
+	Application,
+	Assets,
+	Container,
+	Graphics,
+	Sprite,
+	type Spritesheet,
+	Text,
+} from "pixi.js";
 import type { Action, Board, GameView, Target, Terrain } from "./bindings";
 import { colors } from "./palette";
 
@@ -62,6 +70,7 @@ export async function createScene(
 		resolution: devicePixelRatio,
 		backgroundAlpha: 0,
 	});
+	const terrain = await Assets.load<Spritesheet>("/art/terrain.json");
 	element.append(app.canvas);
 	app.canvas.setAttribute("aria-label", "游戏棋盘");
 	app.canvas.style.touchAction = "none";
@@ -74,21 +83,15 @@ export async function createScene(
 	const board = initial.board;
 	const numbers: Text[] = [];
 	const pips: Graphics[] = [];
-	for (const hex of board.hexes) {
-		const points = hex.vertices.map((vertex) => coordinates(board, vertex));
-		const polygon = points.flatMap(({ x, y }) => [x, y]);
+	for (const [id, hex] of board.hexes.entries()) {
 		const tile = new Container();
-		tile.addChild(
-			new Graphics()
-				.poly(points.flatMap(({ x, y }) => [x, y + 10]))
-				.fill(0x667357),
-		);
-		tile.addChild(
-			new Graphics()
-				.poly(polygon)
-				.fill(land[hex.terrain].color)
-				.stroke({ color: 0xe7d7a6, width: 3 }),
-		);
+		const texture = terrain.textures[`${hex.terrain}-${id % 3}`];
+		if (!texture) throw new Error(`缺少地形资源：${hex.terrain}`);
+		const surface = new Sprite(texture);
+		surface.anchor.set(0.5, 278 / 512);
+		surface.position.set(hex.x * 80, hex.y * 66);
+		surface.scale.set(80 / 224);
+		tile.addChild(surface);
 		const x = hex.x * 80;
 		const y = hex.y * 66;
 		tile.addChild(caption(land[hex.terrain].name, x, y + 35, 12));
